@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Council of LLMs — High Level Architecture</title>
+<style>
+  :root {
+    --bg: #09090f;
+    --surface: #11121a;
+    --border: #1e2030;
+    --text: #e2e8f0;
+    --muted: #4b5680;
+    --faint: #1a1d2e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', 'SF Pro Display', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 32px 80px;
+  }
+
+  /* ── Title ── */
+  .title { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; color: #f8fafc; margin-bottom: 6px; }
+  .tagline { font-size: 13px; color: var(--muted); letter-spacing: 0.06em; margin-bottom: 52px; }
+
+  /* ── Main canvas ── */
+  .canvas {
+    width: 100%;
+    max-width: 1100px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  /* ── Row of nodes ── */
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    width: 100%;
+  }
+
+  /* ── Vertical connector ── */
+  .v-conn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    padding: 6px 0;
+  }
+  .v-line { width: 2px; background: #1e2030; flex: 1; min-height: 28px; }
+  .v-arrow { color: #2a3050; font-size: 16px; line-height: 1; margin-top: -4px; }
+
+  /* ── Horizontal connector ── */
+  .h-conn {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    padding: 0 4px;
+    min-width: 24px;
+    max-width: 48px;
+  }
+  .h-line { flex: 1; height: 2px; background: #1e2030; }
+  .h-arrow { color: #2a3050; font-size: 14px; margin-left: -6px; }
+
+  /* ── Node base ── */
+  .node {
+    border-radius: 14px;
+    padding: 16px 20px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    position: relative;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .node .n-icon { font-size: 22px; margin-bottom: 8px; }
+  .node .n-label {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #f1f5f9;
+    margin-bottom: 4px;
+  }
+  .node .n-sub {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .node .n-badge {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 9px;
+    border-radius: 10px;
+    letter-spacing: 0.03em;
+  }
+
+  /* ── Phase number badge ── */
+  .phase-num {
+    position: absolute;
+    top: -11px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 800;
+    border: 2px solid var(--bg);
+  }
+
+  /* ── Wide node (full row) ── */
+  .node-wide { width: 100%; max-width: 900px; }
+  .node-wide .n-label { font-size: 15px; }
+
+  /* ── Narrow node ── */
+  .node-sm { min-width: 140px; max-width: 200px; }
+
+  /* ── Color themes ── */
+  .c-user    { border-color: #2d3a52; background: #0d1120; }
+  .c-intel   { border-color: #3730a3; background: #0c0b23; }
+  .c-research{ border-color: #0369a1; background: #061625; }
+  .c-advocate{ border-color: #065f46; background: #031410; }
+  .c-cross   { border-color: #7c2d12; background: #180d06; }
+  .c-panel   { border-color: #5b21b6; background: #100b1e; }
+  .c-chief   { border-color: #7e22ce; background: #130920; }
+  .c-output  { border-color: #166534; background: #071310; }
+  .c-tavily  { border-color: #0c4a6e; background: #040f18; }
+
+  .b-intel   { background: #1e1b4b; color: #818cf8; }
+  .b-research{ background: #082f49; color: #38bdf8; }
+  .b-advocate{ background: #022c22; color: #34d399; }
+  .b-cross   { background: #431407; color: #fb923c; }
+  .b-panel   { background: #2e1065; color: #c084fc; }
+  .b-chief   { background: #3b0764; color: #e879f9; }
+  .b-output  { background: #052e16; color: #4ade80; }
+  .b-user    { background: #1e2a45; color: #7dd3fc; }
+  .b-tavily  { background: #082f49; color: #38bdf8; }
+
+  /* ── Fan section (research / judge panel) ── */
+  .fan-row {
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    max-width: 900px;
+  }
+  .fan-node {
+    flex: 1;
+    border-radius: 12px;
+    padding: 14px 12px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    text-align: center;
+  }
+  .fan-node .fn-label { font-size: 11px; font-weight: 700; color: #f1f5f9; margin-bottom: 3px; }
+  .fan-node .fn-sub   { font-size: 10px; color: var(--muted); line-height: 1.4; }
+  .fan-node .fn-badge { display: inline-block; margin-top: 6px; font-size: 9px; font-weight: 600; padding: 2px 8px; border-radius: 8px; }
+
+  /* ── Merge bar ── */
+  .merge-bar {
+    width: 100%;
+    max-width: 900px;
+    text-align: center;
+    padding: 7px 0;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border: 1px dashed #1e2030;
+    border-radius: 8px;
+    background: var(--faint);
+  }
+
+  /* ── Chain strip ── */
+  .chain-strip {
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    gap: 0;
+    margin-bottom: 8px;
+  }
+  .chain-block {
+    flex: 1;
+    border-radius: 10px;
+    padding: 12px 10px;
+    border: 1px solid var(--border);
+    text-align: center;
+  }
+  .chain-block .cb-role { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 4px; }
+  .chain-block .cb-steps { font-size: 11px; font-weight: 600; color: #f1f5f9; }
+  .chain-block .cb-sub { font-size: 10px; color: var(--muted); margin-top: 3px; }
+  .chain-sep { display: flex; align-items: center; padding: 0 6px; color: #1e2030; font-size: 16px; }
+
+  /* ── Labels ── */
+  .section-tag {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 20px 0 10px;
+    width: 100%;
+    max-width: 900px;
+    text-align: left;
+    padding-left: 4px;
+  }
+
+  /* ── Glowing line for chief judge ── */
+  .glow-line {
+    width: 2px;
+    min-height: 32px;
+    background: linear-gradient(to bottom, #1e2030, #7e22ce88);
+  }
+
+  /* ── Output grid ── */
+  .output-grid {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    max-width: 900px;
+  }
+  .out-chip {
+    flex: 1;
+    background: var(--faint);
+    border: 1px solid #1a2e1a;
+    border-radius: 10px;
+    padding: 10px 12px;
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: #4ade80;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* ── Pipe labels on connectors ── */
+  .pipe-label {
+    font-size: 9px;
+    color: #2a3050;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin: 2px 0;
+  }
+
+</style>
+</head>
+<body>
+
+<div class="title">Council of LLMs</div>
+<div class="tagline">HIGH-LEVEL ARCHITECTURE · MULTI-AGENT LEGAL AI</div>
+
+<div class="canvas">
+
+  <!-- ── USER INPUT ── -->
+  <div class="node node-wide c-user" style="padding:18px 28px">
+    <div style="display:flex;align-items:center;justify-content:center;gap:32px;flex-wrap:wrap">
+      <div>
+        <div class="n-icon">👤</div>
+        <div class="n-label">User</div>
+        <div class="n-sub">Case description · Jurisdiction · Files (PDF / DOCX)</div>
+      </div>
+      <div style="color:#1e2030;font-size:24px">→</div>
+      <div>
+        <div style="font-size:11px;color:#4b5680;font-weight:600;margin-bottom:4px">POST /api/session</div>
+        <div style="font-size:10px;color:#2d3a52">multipart/form-data</div>
+      </div>
+      <div style="color:#1e2030;font-size:24px">→</div>
+      <div>
+        <div style="font-size:11px;color:#4b5680;font-weight:600;margin-bottom:4px">GET /api/council/[id]/stream</div>
+        <div style="font-size:10px;color:#2d3a52">SSE · EventSource · keep-alive 15s</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- connector -->
+  <div class="v-conn"><div class="v-line"></div><div class="v-arrow">▼</div></div>
+
+  <!-- ── PHASE 1: INTELLIGENCE ── -->
+  <div class="node node-wide c-intel">
+    <div class="phase-num b-intel">1</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap">
+      <div>
+        <div class="n-icon">🧠</div>
+        <div class="n-label">Intelligence Agent</div>
+        <div class="n-sub">Issue spotting · Case classification · Jurisdiction injection</div>
+        <span class="n-badge b-intel">Claude Sonnet 4.6</span>
+      </div>
+      <div style="color:#1e2030;font-size:20px">→</div>
+      <div style="background:#0c0b23;border:1px solid #3730a3;border-radius:10px;padding:10px 16px;text-align:left">
+        <div style="font-size:10px;color:#818cf8;font-weight:700;margin-bottom:6px">IntelBundle</div>
+        <div style="font-size:10px;color:#3730a3;font-family:monospace;line-height:1.8">
+          legalIssues[ ]<br/>caseType<br/>parties<br/>burdenOfProof<br/>keyFacts[ ]
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="v-conn"><div class="v-line"></div><div class="v-arrow">▼</div></div>
+
+  <!-- ── PHASE 2: RESEARCH (fan-out) ── -->
+  <div class="node node-wide c-research">
+    <div class="phase-num b-research">2</div>
+    <div class="n-label" style="margin-bottom:14px">Research — Fan-out → Tavily → Fan-in</div>
+    <div class="fan-row">
+      <div class="fan-node" style="border-color:#0369a1;background:#040d18">
+        <div class="fn-label" style="color:#38bdf8">Plaintiff Research</div>
+        <div class="fn-sub">Law &amp; precedent<br/>favoring plaintiff</div>
+        <span class="fn-badge b-research">Claude Haiku 4.5</span>
+      </div>
+      <div class="fan-node" style="border-color:#0369a1;background:#040d18">
+        <div class="fn-label" style="color:#38bdf8">Defense Research</div>
+        <div class="fn-sub">Law &amp; precedent<br/>favoring defense</div>
+        <span class="fn-badge b-research">Claude Haiku 4.5</span>
+      </div>
+      <div class="fan-node" style="border-color:#0369a1;background:#040d18">
+        <div class="fn-label" style="color:#38bdf8">Neutral Research</div>
+        <div class="fn-sub">Procedural rules<br/>&amp; standards</div>
+        <span class="fn-badge b-research">Claude Haiku 4.5</span>
+      </div>
+      <div style="display:flex;align-items:center;padding:0 6px;color:#1e2030;font-size:14px">→</div>
+      <div class="fan-node c-tavily" style="border-color:#0c4a6e;max-width:110px">
+        <div style="font-size:18px;margin-bottom:4px">🔍</div>
+        <div class="fn-label" style="color:#38bdf8">Tavily API</div>
+        <div class="fn-sub">9 searches<br/>parallel</div>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:center;padding:8px 0;color:#1e2030;font-size:14px">▼ 3 PartialResearchBundles ▼</div>
+    <div class="merge-bar" style="margin:0 auto;max-width:860px">⟵ &nbsp; Synthesizer merges 3 bundles → ResearchBundle [1..n] &nbsp;⟶ &nbsp;·&nbsp; Claude Sonnet 4.6</div>
+  </div>
+
+  <div class="v-conn"><div class="v-line"></div><div class="v-arrow">▼</div></div>
+
+  <!-- ── PHASE 3: ADVOCATE CHAINS ── -->
+  <div class="node node-wide c-advocate">
+    <div class="phase-num b-advocate">3</div>
+    <div class="n-label" style="margin-bottom:14px">Advocate Chains — 3 Parallel · each: Build → Critique → Refine</div>
+
+    <div class="chain-strip">
+      <div class="chain-block" style="background:#011a10;border-color:#065f46">
+        <div class="cb-role" style="color:#34d399">Plaintiff Advocate</div>
+        <div class="cb-steps">Build → Critique → Refine</div>
+        <div class="cb-sub">GPT-4o · Haiku · GPT-4o</div>
+      </div>
+      <div class="chain-sep">·</div>
+      <div class="chain-block" style="background:#080614;border-color:#3730a3">
+        <div class="cb-role" style="color:#a5b4fc">Defense Advocate</div>
+        <div class="cb-steps">Build → Critique → Refine</div>
+        <div class="cb-sub">Gemini 1.5 Pro · Haiku · Gemini</div>
+      </div>
+      <div class="chain-sep">·</div>
+      <div class="chain-block" style="background:#160c00;border-color:#92400e">
+        <div class="cb-role" style="color:#d97706">Neutral Advocate</div>
+        <div class="cb-steps">Build → Critique → Refine</div>
+        <div class="cb-sub">Claude Sonnet · Haiku · Sonnet</div>
+      </div>
+    </div>
+    <div style="font-size:10px;color:#1e2030;text-align:center;margin-top:4px">Draft / Critique / Final stream live as collapsible sub-steps in UI</div>
+  </div>
+
+  <div class="v-conn"><div class="v-line"></div><div class="v-arrow">▼</div></div>
+
+  <!-- ── PHASE 4: CROSS-EXAM ── -->
+  <div class="node node-wide c-cross">
+    <div class="phase-num b-cross">4</div>
+    <div class="n-label" style="margin-bottom:14px">Cross-Examination — 1 Round · 3 Parallel Rebuttals</div>
+    <div class="fan-row">
+      <div class="fan-node" style="border-color:#7c2d12;background:#0e0603">
+        <div class="fn-label" style="color:#fb923c">Plaintiff Rebuttal</div>
+        <div class="fn-sub">Reads Defense + Neutral<br/>200-word rebuttal</div>
+        <span class="fn-badge b-cross">GPT-4o</span>
+      </div>
+      <div class="fan-node" style="border-color:#7c2d12;background:#0e0603">
+        <div class="fn-label" style="color:#fb923c">Defense Rebuttal</div>
+        <div class="fn-sub">Reads Plaintiff + Neutral<br/>200-word rebuttal</div>
+        <span class="fn-badge b-cross">Gemini 1.5 Pro</span>
+      </div>
+      <div class="fan-node" style="border-color:#7c2d12;background:#0e0603">
+        <div class="fn-label" style="color:#fb923c">Neutral Rebuttal</div>
+        <div class="fn-sub">Reads Plaintiff + Defense<br/>200-word rebuttal</div>
+        <span class="fn-badge b-cross">Claude Sonnet 4.6</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="v-conn"><div class="v-line"></div><div class="v-arrow">▼</div></div>
+
+  <!-- ── PHASE 5: JUDGE PANEL ── -->
+  <div class="node node-wide c-panel">
+    <div class="phase-num b-panel">5</div>
+    <div class="n-label" style="margin-bottom:14px">Judge Panel — Fan-out · 3 Specialized Sub-Judges</div>
+    <div class="fan-row">
+      <div class="fan-node" style="border-color:#5b21b6;background:#08061a">
+        <div style="font-size:20px;margin-bottom:6px">📋</div>
+        <div class="fn-label" style="color:#c084fc">Fact Judge</div>
+        <div class="fn-sub">What happened?<br/>Disputed facts only</div>
+        <span class="fn-badge b-panel">Claude Sonnet 4.6</span>
+      </div>
+      <div class="fan-node" style="border-color:#5b21b6;background:#08061a">
+        <div style="font-size:20px;margin-bottom:6px">⚖️</div>
+        <div class="fn-label" style="color:#c084fc">Law Judge</div>
+        <div class="fn-sub">Which standards apply?<br/>Legal doctrine</div>
+        <span class="fn-badge" style="background:#022c22;color:#34d399">GPT-4o</span>
+      </div>
+      <div class="fan-node" style="border-color:#5b21b6;background:#08061a">
+        <div style="font-size:20px;margin-bottom:6px">📚</div>
+        <div class="fn-label" style="color:#c084fc">Precedent Judge</div>
+        <div class="fn-sub">Analogous cases<br/>Which side wins?</div>
+        <span class="fn-badge" style="background:#0f0e2e;color:#a5b4fc">Gemini 1.5 Pro</span>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:center;padding:8px 0;color:#1e2030;font-size:14px">▼ 3 SubJudgeFindings ▼</div>
+    <div class="merge-bar" style="margin:0 auto;max-width:860px">Fan-in: Fact + Law + Precedent findings merged for Chief Judge</div>
+  </div>
+
+  <!-- special glow connector for chief -->
+  <div class="v-conn">
+    <div class="glow-line"></div>
+    <div style="color:#7e22ce88;font-size:16px;margin-top:-4px">▼</div>
+  </div>
+
+  <!-- ── PHASE 6: CHIEF JUDGE ── -->
+  <div class="node node-wide c-chief" style="border-width:2px;border-color:#7e22ce">
+    <div class="phase-num b-chief">6</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:28px;flex-wrap:wrap">
+      <div style="font-size:48px">⚖️</div>
+      <div>
+        <div class="n-label" style="font-size:18px;color:#e879f9">Chief Judge</div>
+        <div class="n-sub" style="margin:6px 0">Reads: Research + All Arguments + All Rebuttals + Sub-Judge Findings</div>
+        <span class="n-badge b-chief" style="font-size:11px">Claude Opus 4.6 — Highest Reasoning</span>
+      </div>
+      <div style="color:#1e2030;font-size:20px">→</div>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        <div style="background:#1a072a;border:1px solid #7e22ce;border-radius:6px;padding:4px 12px;font-size:10px;font-weight:700;color:#e879f9;letter-spacing:0.06em">FINDINGS OF FACT</div>
+        <div style="background:#1a072a;border:1px solid #7e22ce;border-radius:6px;padding:4px 12px;font-size:10px;font-weight:700;color:#e879f9;letter-spacing:0.06em">CONCLUSIONS OF LAW</div>
+        <div style="background:#1a072a;border:1px solid #7e22ce;border-radius:6px;padding:4px 12px;font-size:10px;font-weight:700;color:#e879f9;letter-spacing:0.06em">RULING + RATIONALE</div>
+        <div style="background:#1a072a;border:1px solid #7e22ce;border-radius:6px;padding:4px 12px;font-size:10px;font-weight:700;color:#e879f9;letter-spacing:0.06em">CITED AUTHORITIES</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="v-conn"><div class="glow-line" style="background:linear-gradient(to bottom,#7e22ce88,#166534aa)"></div><div style="color:#16653488;font-size:16px;margin-top:-4px">▼</div></div>
+
+  <!-- ── OUTPUT ── -->
+  <div class="node node-wide c-output">
+    <div class="n-label" style="color:#4ade80;margin-bottom:12px">✓ Output — Fully Cited Formal Ruling</div>
+    <div class="output-grid">
+      <div class="out-chip">Live SSE Stream</div>
+      <div class="out-chip">Citation Tooltips [n]</div>
+      <div class="out-chip">Research Sources</div>
+      <div class="out-chip">PDF / MD Export</div>
+    </div>
+  </div>
+
+  <!-- ── CALL BUDGET FOOTER ── -->
+  <div style="margin-top:48px;width:100%;max-width:900px">
+    <div style="font-size:10px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:12px;text-align:center">LLM Call Budget — Per Session</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+      <div style="background:#1c0a00;border:1px solid #92400e;border-radius:10px;padding:10px 20px;text-align:center">
+        <div style="font-size:22px;font-weight:800;color:#d97706">13</div>
+        <div style="font-size:10px;color:#92400e;margin-top:2px">Claude (Anthropic)</div>
+      </div>
+      <div style="background:#011a10;border:1px solid #065f46;border-radius:10px;padding:10px 20px;text-align:center">
+        <div style="font-size:22px;font-weight:800;color:#34d399">4</div>
+        <div style="font-size:10px;color:#065f46;margin-top:2px">GPT-4o (OpenAI)</div>
+      </div>
+      <div style="background:#080614;border:1px solid #3730a3;border-radius:10px;padding:10px 20px;text-align:center">
+        <div style="font-size:22px;font-weight:800;color:#a5b4fc">4</div>
+        <div style="font-size:10px;color:#3730a3;margin-top:2px">Gemini (Google)</div>
+      </div>
+      <div style="background:#040f18;border:1px solid #0c4a6e;border-radius:10px;padding:10px 20px;text-align:center">
+        <div style="font-size:22px;font-weight:800;color:#38bdf8">9</div>
+        <div style="font-size:10px;color:#0c4a6e;margin-top:2px">Tavily Searches</div>
+      </div>
+      <div style="background:#1a1d2e;border:1px solid #374151;border-radius:10px;padding:10px 20px;text-align:center">
+        <div style="font-size:22px;font-weight:800;color:#94a3b8">21</div>
+        <div style="font-size:10px;color:#374151;margin-top:2px">Total LLM Calls</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

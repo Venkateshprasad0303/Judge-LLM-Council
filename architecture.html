@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Council of LLMs — Architecture</title>
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #161922;
+    --surface2: #1e2330;
+    --border: #2a2f3e;
+    --text: #e2e8f0;
+    --muted: #7b8497;
+    --anthropic: #d97706;
+    --openai: #10b981;
+    --gemini: #6366f1;
+    --haiku: #f59e0b;
+    --tavily: #0ea5e9;
+    --phase: #374151;
+    --arrow: #4b5563;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 13px;
+    min-height: 100vh;
+    padding: 32px 24px 64px;
+  }
+  h1 {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: #f1f5f9;
+    margin-bottom: 6px;
+  }
+  .subtitle {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    margin-bottom: 40px;
+    letter-spacing: 0.06em;
+  }
+
+  /* ── Legend ── */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 40px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* ── Phase timeline ── */
+  .timeline {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin-bottom: 48px;
+    flex-wrap: wrap;
+    row-gap: 12px;
+  }
+  .phase-pill {
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+    border: 1px solid;
+  }
+  .arrow-sep {
+    color: var(--arrow);
+    font-size: 16px;
+    padding: 0 4px;
+  }
+
+  /* ── Section labels ── */
+  .section-label {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 14px;
+  }
+
+  /* ── Flow row ── */
+  .flow {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    margin-bottom: 12px;
+    position: relative;
+  }
+  .flow-arrow {
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+    color: var(--arrow);
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .flow-arrow.down {
+    flex-direction: column;
+    font-size: 14px;
+    padding: 4px 0;
+    justify-content: center;
+  }
+
+  /* ── Cards ── */
+  .card {
+    border-radius: 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    flex: 1;
+  }
+  .card-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .card-sub {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .card-model {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    letter-spacing: 0.04em;
+  }
+  .card.anthropic  { border-color: #92400e; }
+  .card.openai     { border-color: #065f46; }
+  .card.gemini     { border-color: #3730a3; }
+  .card.haiku      { border-color: #78350f; }
+  .card.tavily     { border-color: #0c4a6e; }
+  .card.neutral    { border-color: #374151; }
+
+  .badge-anthropic { background: #451a03; color: var(--anthropic); }
+  .badge-openai    { background: #022c22; color: var(--openai); }
+  .badge-gemini    { background: #1e1b4b; color: #a5b4fc; }
+  .badge-haiku     { background: #451a03; color: var(--haiku); }
+  .badge-tavily    { background: #082f49; color: var(--tavily); }
+
+  /* ── Grid layouts ── */
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* ── Phase block ── */
+  .phase-block {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+    position: relative;
+  }
+  .phase-block::before {
+    content: attr(data-phase);
+    position: absolute;
+    top: -11px;
+    left: 20px;
+    background: var(--bg);
+    padding: 0 8px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ── Down connector ── */
+  .connector {
+    display: flex;
+    justify-content: center;
+    margin: 4px 0;
+    color: var(--arrow);
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  /* ── Chain steps ── */
+  .chain {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+  }
+  .chain-step {
+    flex: 1;
+    border-radius: 8px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+  }
+  .chain-step .step-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 3px;
+    opacity: 0.6;
+  }
+  .chain-step .step-title { font-size: 11px; font-weight: 600; }
+  .chain-step .step-model { font-size: 10px; color: var(--muted); margin-top: 3px; }
+  .chain-arrow { display: flex; align-items: center; padding: 0 5px; color: var(--arrow); font-size: 14px; }
+
+  /* ── Synthesizer / merger bar ── */
+  .merge-bar {
+    text-align: center;
+    background: var(--surface2);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 11px;
+    color: var(--muted);
+    margin: 8px 0;
+  }
+
+  /* ── Phase colors ── */
+  .ph-intel   { background: #1a1a2e; color: #818cf8; border-color: #3730a3; }
+  .ph-research{ background: #082f49; color: #38bdf8; border-color: #0369a1; }
+  .ph-advocate{ background: #022c22; color: #34d399; border-color: #065f46; }
+  .ph-cross   { background: #1c1917; color: #fb923c; border-color: #78350f; }
+  .ph-panel   { background: #1e1b4b; color: #a5b4fc; border-color: #4338ca; }
+  .ph-chief   { background: #3b0764; color: #e879f9; border-color: #7e22ce; }
+  .ph-complete{ background: #1a2e1a; color: #4ade80; border-color: #166534; }
+
+  /* ── SSE events panel ── */
+  .events-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+  .event-chip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 10px;
+    font-family: 'SF Mono', monospace;
+    color: #7dd3fc;
+  }
+  .event-chip .etype { color: var(--muted); font-size: 9px; }
+
+  /* ── Data flow ── */
+  .data-flow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 14px;
+    background: var(--surface2);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .data-node {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    border: 1px solid;
+  }
+
+  hr.divider { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+  .w100 { width: 100%; }
+  .mt8 { margin-top: 8px; }
+  .mt16 { margin-top: 16px; }
+
+  .tag {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+  .tag-parallel { background: #065f46; color: #6ee7b7; }
+  .tag-seq      { background: #1e1b4b; color: #a5b4fc; }
+  .tag-fanout   { background: #082f49; color: #7dd3fc; }
+</style>
+</head>
+<body>
+
+<h1>Council of LLMs</h1>
+<div class="subtitle">Multi-Agent Legal AI · Architecture Overview</div>
+
+<!-- ── Legend ── -->
+<div class="legend">
+  <div class="legend-item"><div class="dot" style="background:#d97706"></div>Claude (Anthropic)</div>
+  <div class="legend-item"><div class="dot" style="background:#10b981"></div>GPT-4o (OpenAI)</div>
+  <div class="legend-item"><div class="dot" style="background:#6366f1"></div>Gemini 1.5 Pro (Google)</div>
+  <div class="legend-item"><div class="dot" style="background:#f59e0b"></div>Claude Haiku (Critic)</div>
+  <div class="legend-item"><div class="dot" style="background:#0ea5e9"></div>Tavily Search</div>
+  <div class="legend-item"><span style="color:#6ee7b7;font-size:10px;font-weight:700">PARALLEL</span> = runs concurrently</div>
+  <div class="legend-item"><span style="color:#a5b4fc;font-size:10px;font-weight:700">SEQ</span> = waits for previous</div>
+</div>
+
+<!-- ── Phase timeline ── -->
+<div class="timeline">
+  <div class="phase-pill ph-intel">① Intelligence</div>
+  <div class="arrow-sep">→</div>
+  <div class="phase-pill ph-research">② Research</div>
+  <div class="arrow-sep">→</div>
+  <div class="phase-pill ph-advocate">③ Advocate Chains</div>
+  <div class="arrow-sep">→</div>
+  <div class="phase-pill ph-cross">④ Cross-Exam</div>
+  <div class="arrow-sep">→</div>
+  <div class="phase-pill ph-panel">⑤ Judge Panel</div>
+  <div class="arrow-sep">→</div>
+  <div class="phase-pill ph-chief">⑥ Chief Ruling</div>
+  <div class="arrow-sep">→</div>
+  <div class="phase-pill ph-complete">✓ Complete</div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     PHASE 1 — INTELLIGENCE
+══════════════════════════════════════════════════════ -->
+<div class="phase-block" data-phase="Phase 1 · Sequential">
+  <div class="section-label">① Intelligence Layer</div>
+  <div class="flow">
+    <div class="card neutral" style="max-width:220px">
+      <div class="card-title">User Input</div>
+      <div class="card-sub">Case description<br/>Jurisdiction code<br/>File uploads (PDF/DOCX)</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="card anthropic" style="flex:1">
+      <div class="card-title">Intelligence Agent</div>
+      <div class="card-sub">Issue spotting · Case classification<br/>Parties · Burden of proof · Key facts<br/>Jurisdiction context injection</div>
+      <span class="card-model badge-anthropic">Claude Sonnet 4.6</span>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="card neutral" style="max-width:200px">
+      <div class="card-title">IntelBundle</div>
+      <div class="card-sub">legalIssues[]<br/>caseType<br/>parties<br/>burdenOfProof<br/>keyFacts[]</div>
+    </div>
+  </div>
+</div>
+
+<div class="connector">↓</div>
+
+<!-- ══════════════════════════════════════════════════════
+     PHASE 2 — RESEARCH
+══════════════════════════════════════════════════════ -->
+<div class="phase-block" data-phase="Phase 2 · Fan-out → Fan-in">
+  <div class="section-label">② Research <span class="tag tag-fanout">Fan-out</span></div>
+
+  <div class="grid-3">
+    <div class="card haiku">
+      <div class="card-title" style="color:#fbbf24">Plaintiff Research</div>
+      <div class="card-sub">Searches law &amp; precedents<br/>favoring plaintiff's position</div>
+      <span class="card-model badge-haiku">Claude Haiku 4.5</span>
+    </div>
+    <div class="card haiku">
+      <div class="card-title" style="color:#fbbf24">Defense Research</div>
+      <div class="card-sub">Searches law &amp; precedents<br/>favoring defense's position</div>
+      <span class="card-model badge-haiku">Claude Haiku 4.5</span>
+    </div>
+    <div class="card haiku">
+      <div class="card-title" style="color:#fbbf24">Neutral Research</div>
+      <div class="card-sub">Procedural rules · standards<br/>neutral commentary</div>
+      <span class="card-model badge-haiku">Claude Haiku 4.5</span>
+    </div>
+  </div>
+
+  <div class="connector">↓ each queries Tavily in parallel ↓</div>
+
+  <div class="grid-3">
+    <div class="card tavily" style="text-align:center">
+      <div class="card-title" style="color:#38bdf8">Tavily Search API</div>
+      <div class="card-sub">3–5 queries per agent<br/>Legal-domain results</div>
+      <span class="card-model badge-tavily">Tavily</span>
+    </div>
+    <div class="card tavily" style="text-align:center">
+      <div class="card-title" style="color:#38bdf8">Tavily Search API</div>
+      <div class="card-sub">3–5 queries per agent<br/>Legal-domain results</div>
+      <span class="card-model badge-tavily">Tavily</span>
+    </div>
+    <div class="card tavily" style="text-align:center">
+      <div class="card-title" style="color:#38bdf8">Tavily Search API</div>
+      <div class="card-sub">3–5 queries per agent<br/>Legal-domain results</div>
+      <span class="card-model badge-tavily">Tavily</span>
+    </div>
+  </div>
+
+  <div class="connector">↓ 3 PartialResearchBundles ↓</div>
+
+  <div class="merge-bar">Fan-in: 3 bundles merged</div>
+
+  <div class="connector">↓</div>
+
+  <div class="flow" style="justify-content:center">
+    <div class="card anthropic w100">
+      <div class="card-title">Research Synthesizer</div>
+      <div class="card-sub">Merges 3 PartialResearchBundles → unified ResearchBundle with numbered sources [1..n]</div>
+      <span class="card-model badge-anthropic">Claude Sonnet 4.6</span>
+    </div>
+  </div>
+</div>
+
+<div class="connector">↓</div>
+
+<!-- ══════════════════════════════════════════════════════
+     PHASE 3 — ADVOCATE CHAINS
+══════════════════════════════════════════════════════ -->
+<div class="phase-block" data-phase="Phase 3 · 3 Parallel Chains">
+  <div class="section-label">③ Advocate Chains <span class="tag tag-parallel">Parallel</span> · each is Build → Critique → Refine <span class="tag tag-seq">Sequential internally</span></div>
+
+  <!-- PLAINTIFF -->
+  <div style="margin-bottom:14px">
+    <div style="font-size:10px;font-weight:700;color:#34d399;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px">
+      Plaintiff Advocate — GPT-4o
+    </div>
+    <div class="chain">
+      <div class="chain-step" style="background:#011f13;border-color:#065f46">
+        <div class="step-label">Step 1 · Builder</div>
+        <div class="step-title">Draft Argument</div>
+        <div class="step-model">GPT-4o · Facts → Theory → Precedents → Relief</div>
+      </div>
+      <div class="chain-arrow">→</div>
+      <div class="chain-step" style="background:#1c1508;border-color:#78350f">
+        <div class="step-label">Step 2 · Critic</div>
+        <div class="step-title">Critique Draft</div>
+        <div class="step-model">Claude Haiku · Spots weak citations, logic gaps</div>
+      </div>
+      <div class="chain-arrow">→</div>
+      <div class="chain-step" style="background:#011f13;border-color:#065f46">
+        <div class="step-label">Step 3 · Refiner</div>
+        <div class="step-title">Final Argument</div>
+        <div class="step-model">GPT-4o · Addresses critique, polished output</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DEFENSE -->
+  <div style="margin-bottom:14px">
+    <div style="font-size:10px;font-weight:700;color:#a5b4fc;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px">
+      Defense Advocate — Gemini 1.5 Pro
+    </div>
+    <div class="chain">
+      <div class="chain-step" style="background:#0f0e2e;border-color:#3730a3">
+        <div class="step-label">Step 1 · Builder</div>
+        <div class="step-title">Draft Argument</div>
+        <div class="step-model">Gemini 1.5 Pro · Threshold Defenses → Counter-Facts → Relief</div>
+      </div>
+      <div class="chain-arrow">→</div>
+      <div class="chain-step" style="background:#1c1508;border-color:#78350f">
+        <div class="step-label">Step 2 · Critic</div>
+        <div class="step-title">Critique Draft</div>
+        <div class="step-model">Claude Haiku · Spots weak citations, logic gaps</div>
+      </div>
+      <div class="chain-arrow">→</div>
+      <div class="chain-step" style="background:#0f0e2e;border-color:#3730a3">
+        <div class="step-label">Step 3 · Refiner</div>
+        <div class="step-title">Final Argument</div>
+        <div class="step-model">Gemini 1.5 Pro · Addresses critique, polished output</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NEUTRAL -->
+  <div>
+    <div style="font-size:10px;font-weight:700;color:#d97706;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px">
+      Neutral Advocate — Claude Sonnet
+    </div>
+    <div class="chain">
+      <div class="chain-step" style="background:#1c1004;border-color:#92400e">
+        <div class="step-label">Step 1 · Builder</div>
+        <div class="step-title">Draft Argument</div>
+        <div class="step-model">Claude Sonnet · Plaintiff Weaknesses · Defense Weaknesses · Open Questions</div>
+      </div>
+      <div class="chain-arrow">→</div>
+      <div class="chain-step" style="background:#1c1508;border-color:#78350f">
+        <div class="step-label">Step 2 · Critic</div>
+        <div class="step-title">Critique Draft</div>
+        <div class="step-model">Claude Haiku · Spots weak citations, logic gaps</div>
+      </div>
+      <div class="chain-arrow">→</div>
+      <div class="chain-step" style="background:#1c1004;border-color:#92400e">
+        <div class="step-label">Step 3 · Refiner</div>
+        <div class="step-title">Final Argument</div>
+        <div class="step-model">Claude Sonnet · Addresses critique, polished output</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mt16" style="background:#0a0a0a;border:1px dashed #374151;border-radius:8px;padding:8px 12px;font-size:10px;color:var(--muted)">
+    ℹ  UI shows Draft / Critique / Final as collapsible sub-steps inside each AdvocateCard — all streaming live
+  </div>
+</div>
+
+<div class="connector">↓</div>
+
+<!-- ══════════════════════════════════════════════════════
+     PHASE 4 — CROSS-EXAMINATION
+══════════════════════════════════════════════════════ -->
+<div class="phase-block" data-phase="Phase 4 · 1 Round · Parallel">
+  <div class="section-label">④ Cross-Examination <span class="tag tag-parallel">Parallel</span></div>
+  <div class="grid-3">
+    <div class="card openai">
+      <div class="card-title" style="color:#34d399">Plaintiff Rebuttal</div>
+      <div class="card-sub">Reads Defense + Neutral final arguments<br/>Issues targeted rebuttal (200 words)<br/>Must cite specific weaknesses</div>
+      <span class="card-model badge-openai">GPT-4o</span>
+    </div>
+    <div class="card gemini">
+      <div class="card-title" style="color:#a5b4fc">Defense Rebuttal</div>
+      <div class="card-sub">Reads Plaintiff + Neutral final arguments<br/>Issues targeted rebuttal (200 words)<br/>Must cite specific weaknesses</div>
+      <span class="card-model badge-gemini">Gemini 1.5 Pro</span>
+    </div>
+    <div class="card anthropic">
+      <div class="card-title" style="color:#d97706">Neutral Rebuttal</div>
+      <div class="card-sub">Reads Plaintiff + Defense final arguments<br/>Issues targeted rebuttal (200 words)<br/>Must cite specific weaknesses</div>
+      <span class="card-model badge-anthropic">Claude Sonnet 4.6</span>
+    </div>
+  </div>
+</div>
+
+<div class="connector">↓</div>
+
+<!-- ══════════════════════════════════════════════════════
+     PHASE 5 — JUDGE PANEL
+══════════════════════════════════════════════════════ -->
+<div class="phase-block" data-phase="Phase 5 · Fan-out → Fan-in">
+  <div class="section-label">⑤ Judge Panel <span class="tag tag-fanout">Fan-out</span></div>
+  <div class="grid-3">
+    <div class="card anthropic">
+      <div class="card-title" style="color:#d97706">Fact Judge</div>
+      <div class="card-sub">Disputed facts only<br/>What actually happened?<br/>Receives: research + all args + rebuttals</div>
+      <span class="card-model badge-anthropic">Claude Sonnet 4.6</span>
+    </div>
+    <div class="card openai">
+      <div class="card-title" style="color:#34d399">Law Judge</div>
+      <div class="card-sub">Legal standards &amp; rules<br/>Which doctrines apply?<br/>Receives: research + all args + rebuttals</div>
+      <span class="card-model badge-openai">GPT-4o</span>
+    </div>
+    <div class="card gemini">
+      <div class="card-title" style="color:#a5b4fc">Precedent Judge</div>
+      <div class="card-sub">Analogous cases<br/>Which side do they favor?<br/>Receives: research + all args + rebuttals</div>
+      <span class="card-model badge-gemini">Gemini 1.5 Pro</span>
+    </div>
+  </div>
+
+  <div class="connector">↓ 3 SubJudgeFindings ↓</div>
+  <div class="merge-bar">Fan-in: 3 sub-judge findings merged</div>
+</div>
+
+<div class="connector">↓</div>
+
+<!-- ══════════════════════════════════════════════════════
+     PHASE 6 — CHIEF JUDGE
+══════════════════════════════════════════════════════ -->
+<div class="phase-block" data-phase="Phase 6 · Sequential">
+  <div class="section-label">⑥ Chief Ruling <span class="tag tag-seq">Sequential</span></div>
+  <div class="card anthropic">
+    <div style="display:flex;align-items:flex-start;gap:16px">
+      <div style="flex:1">
+        <div class="card-title" style="font-size:13px;color:#d97706">Chief Judge — Claude Opus 4.6</div>
+        <div class="card-sub" style="margin-top:6px">
+          Receives: ResearchBundle + 3 final arguments + 3 rebuttals + 3 sub-judge findings<br/><br/>
+          Issues formal ruling in 5 sections:
+        </div>
+        <div class="mt8" style="display:flex;flex-wrap:wrap;gap:6px">
+          <span style="background:#1c0a00;color:#fed7aa;border:1px solid #92400e;border-radius:6px;padding:3px 10px;font-size:10px;font-weight:600">FINDINGS OF FACT</span>
+          <span style="background:#1c0a00;color:#fed7aa;border:1px solid #92400e;border-radius:6px;padding:3px 10px;font-size:10px;font-weight:600">CONCLUSIONS OF LAW</span>
+          <span style="background:#1c0a00;color:#fed7aa;border:1px solid #92400e;border-radius:6px;padding:3px 10px;font-size:10px;font-weight:600">RULING</span>
+          <span style="background:#1c0a00;color:#fed7aa;border:1px solid #92400e;border-radius:6px;padding:3px 10px;font-size:10px;font-weight:600">RATIONALE</span>
+          <span style="background:#1c0a00;color:#fed7aa;border:1px solid #92400e;border-radius:6px;padding:3px 10px;font-size:10px;font-weight:600">CITED AUTHORITIES</span>
+        </div>
+      </div>
+      <div style="text-align:center;flex-shrink:0">
+        <div style="font-size:32px">⚖️</div>
+        <span class="card-model badge-anthropic" style="font-size:11px">Claude Opus 4.6</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- ══════════════════════════════════════════════════════
+     SSE EVENT FLOW
+══════════════════════════════════════════════════════ -->
+<div class="section-label" style="margin-bottom:16px">SSE Event Stream — CouncilEvent Union</div>
+<div class="events-grid">
+  <div class="event-chip"><div class="etype">phase</div>phase_change · phase</div>
+  <div class="event-chip"><div class="etype">research</div>research_agent_start · agent</div>
+  <div class="event-chip"><div class="etype">research</div>research_result · results[]</div>
+  <div class="event-chip"><div class="etype">advocate</div>advocate_chain_step · role · step</div>
+  <div class="event-chip"><div class="etype">advocate</div>advocate_draft_token · role · token</div>
+  <div class="event-chip"><div class="etype">advocate</div>advocate_critique_token · role · token</div>
+  <div class="event-chip"><div class="etype">advocate</div>advocate_token · role · token</div>
+  <div class="event-chip"><div class="etype">advocate</div>advocate_complete · role</div>
+  <div class="event-chip"><div class="etype">cross-exam</div>crossexam_start · role</div>
+  <div class="event-chip"><div class="etype">cross-exam</div>crossexam_token · role · token</div>
+  <div class="event-chip"><div class="etype">cross-exam</div>crossexam_complete · role</div>
+  <div class="event-chip"><div class="etype">judge panel</div>subjudge_start · judgeRole</div>
+  <div class="event-chip"><div class="etype">judge panel</div>subjudge_token · judgeRole · token</div>
+  <div class="event-chip"><div class="etype">judge panel</div>subjudge_complete · judgeRole</div>
+  <div class="event-chip"><div class="etype">chief</div>judge_start</div>
+  <div class="event-chip"><div class="etype">chief</div>judge_token · token</div>
+  <div class="event-chip"><div class="etype">chief</div>judge_complete · judgment</div>
+  <div class="event-chip"><div class="etype">error</div>error · message · phase</div>
+</div>
+
+<hr class="divider" />
+
+<!-- ══════════════════════════════════════════════════════
+     INFRA
+══════════════════════════════════════════════════════ -->
+<div class="section-label" style="margin-bottom:16px">Infrastructure</div>
+<div class="grid-3">
+  <div class="card neutral">
+    <div class="card-title">Frontend</div>
+    <div class="card-sub">Next.js 14 App Router<br/>TypeScript · Tailwind CSS<br/>Zustand (append-only SSE state)<br/>EventSource (built-in reconnect)</div>
+  </div>
+  <div class="card neutral">
+    <div class="card-title">Backend</div>
+    <div class="card-sub">Next.js API routes<br/>SSE stream · keep-alive 15s<br/>AsyncQueue&lt;CouncilEvent&gt;<br/>Per-session orchestrator (non-blocking)</div>
+  </div>
+  <div class="card neutral">
+    <div class="card-title">Deployment</div>
+    <div class="card-sub">Docker + docker-compose<br/>Railway (no timeout limits)<br/>Redis session store (prod)<br/>In-memory Map (dev)</div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- ══════════════════════════════════════════════════════
+     API SURFACE
+══════════════════════════════════════════════════════ -->
+<div class="section-label" style="margin-bottom:16px">API Surface</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+  <div class="data-flow">
+    <div class="data-node" style="background:#011f13;color:#34d399;border-color:#065f46">POST /api/session</div>
+    <div style="color:var(--muted);font-size:11px">multipart: caseDescription + jurisdictionCode + files[]</div>
+    <div style="color:var(--arrow)">→</div>
+    <div style="font-size:11px;color:var(--text)">{ sessionId, streamUrl }</div>
+    <div style="color:var(--arrow)">→</div>
+    <div style="font-size:11px;color:var(--muted)">fires orchestrator non-blocking</div>
+  </div>
+  <div class="data-flow">
+    <div class="data-node" style="background:#082f49;color:#38bdf8;border-color:#0369a1">GET /api/council/[id]/stream</div>
+    <div style="color:var(--muted);font-size:11px">text/event-stream · long-lived SSE</div>
+    <div style="color:var(--arrow)">→</div>
+    <div style="font-size:11px;color:var(--text)">drains AsyncQueue → data: JSON\n\n</div>
+  </div>
+  <div class="data-flow">
+    <div class="data-node" style="background:#1e1b4b;color:#a5b4fc;border-color:#4338ca">POST /api/upload</div>
+    <div style="color:var(--muted);font-size:11px">PDF / DOCX preview</div>
+    <div style="color:var(--arrow)">→</div>
+    <div style="font-size:11px;color:var(--text)">{ fileName, extractedText, pageCount, wordCount }</div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- ══════════════════════════════════════════════════════
+     LLM COUNT
+══════════════════════════════════════════════════════ -->
+<div class="section-label" style="margin-bottom:16px">LLM Call Budget — Per Session</div>
+<div class="grid-3">
+  <div class="card anthropic">
+    <div class="card-title" style="color:#d97706">Claude (Anthropic)</div>
+    <div class="card-sub">
+      Intelligence agent × 1<br/>
+      Research Synthesizer × 1<br/>
+      Neutral Builder × 1<br/>
+      Neutral Refiner × 1<br/>
+      Neutral Rebuttal × 1<br/>
+      Fact Judge × 1<br/>
+      Chief Judge × 1<br/>
+      Haiku Critics × 3<br/>
+      Haiku Researchers × 3
+    </div>
+    <div class="mt8" style="font-size:12px;font-weight:700;color:#d97706">= 13 calls</div>
+  </div>
+  <div class="card openai">
+    <div class="card-title" style="color:#34d399">GPT-4o (OpenAI)</div>
+    <div class="card-sub">
+      Plaintiff Builder × 1<br/>
+      Plaintiff Refiner × 1<br/>
+      Plaintiff Rebuttal × 1<br/>
+      Law Judge × 1
+    </div>
+    <div class="mt8" style="font-size:12px;font-weight:700;color:#34d399">= 4 calls</div>
+  </div>
+  <div class="card gemini">
+    <div class="card-title" style="color:#a5b4fc">Gemini 1.5 Pro (Google)</div>
+    <div class="card-sub">
+      Defense Builder × 1<br/>
+      Defense Refiner × 1<br/>
+      Defense Rebuttal × 1<br/>
+      Precedent Judge × 1
+    </div>
+    <div class="mt8" style="font-size:12px;font-weight:700;color:#a5b4fc">= 4 calls</div>
+  </div>
+</div>
+<div style="text-align:center;margin-top:12px;font-size:11px;color:var(--muted)">
+  Total: 21 LLM calls · 9 Tavily searches per session
+</div>
+
+</body>
+</html>
