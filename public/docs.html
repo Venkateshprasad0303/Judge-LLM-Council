@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Council of LLMs — Project Documentation</title>
+<style>
+  :root {
+    --bg: #09090f;
+    --surface: #11121a;
+    --surface2: #151621;
+    --border: #1e2030;
+    --text: #e2e8f0;
+    --muted: #6b7280;
+    --faint: #1a1d2e;
+    --indigo: #818cf8;
+    --indigo-dark: #3730a3;
+    --green: #34d399;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --purple: #e879f9;
+    --blue: #38bdf8;
+    --orange: #fb923c;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    line-height: 1.7;
+    font-size: 15px;
+  }
+
+  /* ── Navigation ── */
+  nav {
+    position: sticky;
+    top: 0;
+    background: rgba(9, 9, 15, 0.95);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 40px;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    height: 52px;
+    overflow-x: auto;
+  }
+
+  .nav-brand {
+    font-weight: 900;
+    font-size: 14px;
+    color: var(--indigo);
+    white-space: nowrap;
+    margin-right: 8px;
+  }
+
+  nav a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    transition: color 0.15s;
+    letter-spacing: 0.02em;
+  }
+  nav a:hover { color: var(--text); }
+
+  /* ── Layout ── */
+  .page {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 60px 40px 120px;
+  }
+
+  /* ── Typography ── */
+  h1 {
+    font-size: 42px;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    line-height: 1.15;
+    background: linear-gradient(135deg, #818cf8 0%, #e879f9 50%, #38bdf8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 16px;
+  }
+
+  h2 {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #f1f5f9;
+    margin: 56px 0 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  h3 {
+    font-size: 17px;
+    font-weight: 700;
+    color: #e2e8f0;
+    margin: 32px 0 12px;
+  }
+
+  h4 {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin: 24px 0 8px;
+  }
+
+  p { margin-bottom: 14px; color: #cbd5e1; }
+
+  strong { color: #f1f5f9; font-weight: 700; }
+
+  em { color: var(--indigo); font-style: normal; font-weight: 600; }
+
+  ul, ol {
+    padding-left: 20px;
+    margin-bottom: 16px;
+    color: #cbd5e1;
+  }
+  li { margin-bottom: 6px; }
+
+  code {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    background: var(--faint);
+    border: 1px solid var(--border);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--indigo);
+  }
+
+  pre {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    margin-bottom: 20px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    color: #a5b4fc;
+  }
+
+  pre .comment { color: var(--muted); }
+  pre .key { color: var(--indigo); }
+  pre .val { color: var(--green); }
+  pre .str { color: var(--amber); }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 48px 0 32px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+
+  .hero-subtitle {
+    font-size: 19px;
+    color: var(--muted);
+    font-weight: 400;
+    margin-bottom: 24px;
+    max-width: 620px;
+  }
+
+  .hero-meta {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .pill {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 20px;
+    letter-spacing: 0.04em;
+  }
+
+  .pill-indigo { background: #1e1b4b; color: var(--indigo); border: 1px solid var(--indigo-dark); }
+  .pill-purple { background: #3b0764; color: var(--purple); border: 1px solid #7e22ce; }
+  .pill-green  { background: #022c22; color: var(--green);  border: 1px solid #065f46; }
+  .pill-amber  { background: #1c1500; color: var(--amber);  border: 1px solid #b45309; }
+  .pill-blue   { background: #082f49; color: var(--blue);   border: 1px solid #0369a1; }
+
+  /* ── Info boxes ── */
+  .callout {
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin: 20px 0;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+
+  .callout-indigo { background: #0f0f2a; border: 1px solid #3730a3; border-left: 3px solid var(--indigo); }
+  .callout-green  { background: #021a12; border: 1px solid #065f46; border-left: 3px solid var(--green); }
+  .callout-amber  { background: #130f00; border: 1px solid #b45309; border-left: 3px solid var(--amber); }
+  .callout-red    { background: #180a0a; border: 1px solid #991b1b; border-left: 3px solid var(--red); }
+
+  .callout strong { display: block; margin-bottom: 4px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .callout-indigo strong { color: var(--indigo); }
+  .callout-green  strong { color: var(--green); }
+  .callout-amber  strong { color: var(--amber); }
+  .callout-red    strong { color: var(--red); }
+
+  /* ── Architecture Diagram ── */
+  .arch-diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 32px;
+    margin: 24px 0;
+    overflow-x: auto;
+  }
+
+  .arch-flow {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-width: 560px;
+  }
+
+  .arch-row {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    position: relative;
+  }
+
+  .arch-phase {
+    background: var(--faint);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    flex: 1;
+    position: relative;
+  }
+
+  .arch-phase:hover { border-color: #3730a3; }
+
+  .arch-phase-num {
+    font-size: 9px;
+    font-weight: 900;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .arch-phase-name {
+    font-size: 13px;
+    font-weight: 800;
+    color: #f1f5f9;
+    margin-bottom: 4px;
+  }
+
+  .arch-phase-model {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .arch-phase-model span {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 5px;
+    font-size: 10px;
+    font-weight: 700;
+    margin-right: 3px;
+    margin-top: 3px;
+  }
+
+  .m-sonnet { background: #1c0e00; color: #f59e0b; border: 1px solid #92400e; }
+  .m-haiku  { background: #021a12; color: var(--green); border: 1px solid #065f46; }
+  .m-opus   { background: #3b0764; color: var(--purple); border: 1px solid #7e22ce; }
+  .m-o4     { background: #082f49; color: var(--blue); border: 1px solid #0369a1; }
+  .m-gemini { background: #1a0536; color: var(--purple); border: 1px solid #7e22ce; }
+  .m-tavily { background: #130f00; color: var(--amber); border: 1px solid #b45309; }
+
+  .arch-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    flex-shrink: 0;
+    color: var(--muted);
+    font-size: 18px;
+  }
+
+  .arch-connector {
+    width: 2px;
+    height: 20px;
+    background: var(--border);
+    margin: 0 auto;
+  }
+
+  .arch-fan {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    flex: 1;
+  }
+
+  .arch-fan-item {
+    flex: 1;
+    background: var(--faint);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 12px;
+  }
+
+  .arch-fan-item .arch-phase-name { font-size: 12px; }
+
+  .arch-output {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+  }
+
+  .arch-output code {
+    background: transparent;
+    border: none;
+    padding: 0;
+    font-size: 10px;
+    color: var(--indigo);
+  }
+
+  /* ── Phase detail cards ── */
+  .phase-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin: 20px 0;
+  }
+
+  .phase-card-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 16px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .phase-badge {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    font-weight: 900;
+    flex-shrink: 0;
+    background: var(--indigo-dark);
+    color: var(--indigo);
+  }
+
+  .phase-card-title { font-size: 16px; font-weight: 800; color: #f1f5f9; }
+  .phase-card-subtitle { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .phase-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-top: 16px;
+  }
+
+  @media (max-width: 700px) { .phase-grid { grid-template-columns: 1fr; } }
+
+  .phase-grid-item {
+    background: var(--faint);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 12px;
+  }
+
+  .phase-grid-item h5 {
+    font-size: 10px;
+    font-weight: 800;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  /* ── Table ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 13px;
+  }
+
+  th {
+    background: var(--faint);
+    border: 1px solid var(--border);
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  td {
+    border: 1px solid var(--border);
+    padding: 10px 14px;
+    color: #cbd5e1;
+    vertical-align: top;
+  }
+
+  tr:hover td { background: #0d0e18; }
+
+  /* ── Screenshot placeholders ── */
+  .screenshot {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 24px 0;
+  }
+
+  .screenshot-caption {
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--muted);
+    font-style: italic;
+  }
+
+  .screenshot-mockup {
+    padding: 20px;
+    min-height: 180px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    background: #09090f;
+  }
+
+  /* ── Cost table ── */
+  .cost-total {
+    background: #021a12;
+    border: 1px solid #065f46;
+    border-radius: 8px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 12px;
+  }
+
+  .cost-total .label { font-size: 13px; font-weight: 700; color: #f1f5f9; }
+  .cost-total .value { font-size: 22px; font-weight: 900; color: var(--green); }
+
+  /* ── Divider ── */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 40px 0;
+  }
+
+  /* ── Anti-hallucination timeline ── */
+  .timeline {
+    border-left: 2px solid var(--border);
+    padding-left: 24px;
+    margin: 20px 0;
+  }
+
+  .timeline-item {
+    position: relative;
+    margin-bottom: 24px;
+  }
+
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -30px;
+    top: 6px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--indigo);
+    border: 2px solid var(--bg);
+  }
+
+  .timeline-item h4 {
+    font-size: 13px;
+    font-weight: 800;
+    color: #f1f5f9;
+    margin: 0 0 6px;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .timeline-item p { margin: 0; font-size: 13px; color: var(--muted); }
+
+  /* ── Section anchor ── */
+  [id] { scroll-margin-top: 68px; }
+
+  /* ── Footnotes ── */
+  .footnote {
+    font-size: 12px;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    margin-top: 40px;
+  }
+
+  .back-link {
+    display: inline-block;
+    margin-top: 40px;
+    font-size: 12px;
+    color: var(--indigo);
+    text-decoration: none;
+  }
+  .back-link:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">Council of LLMs</div>
+  <a href="#overview">Overview</a>
+  <a href="#architecture">Architecture</a>
+  <a href="#phases">Phases</a>
+  <a href="#anti-hallucination">Anti-Hallucination</a>
+  <a href="#cost">Cost Engineering</a>
+  <a href="#infrastructure">Infrastructure</a>
+  <a href="#ui">UI & Output</a>
+</nav>
+
+<div class="page">
+
+  <!-- ── HERO ── -->
+  <div class="hero">
+    <h1>Council of LLMs</h1>
+    <p class="hero-subtitle">
+      A 7-phase adversarial multi-agent pipeline for legal reasoning — where competing AI models argue, cross-examine, and deliberate before a Chief Judge renders a structured, citation-verified ruling.
+    </p>
+    <div class="hero-meta">
+      <span class="pill pill-indigo">7-Phase Pipeline</span>
+      <span class="pill pill-purple">23 LLM Calls</span>
+      <span class="pill pill-green">Citation Verified</span>
+      <span class="pill pill-amber">Dynamic Tavily Search</span>
+      <span class="pill pill-blue">5 AI Providers</span>
+    </div>
+  </div>
+
+  <!-- ── OVERVIEW ── -->
+  <div id="overview">
+    <h2>What is this and why does it exist</h2>
+
+    <p>
+      Legal AI is a domain where hallucinations are not just wrong — they are dangerous. A model that confidently cites a non-existent statute or misattributes a legal precedent can lead users to make consequential decisions on false grounds. Most legal AI tools ask a single model a question and return whatever it generates. That model has no adversary, no fact-checker, and no one to call out its assumptions.
+    </p>
+
+    <p>
+      Council of LLMs is built on a different premise: <strong>structured adversarial disagreement produces more reliable output than any single model's confident answer</strong>. The system makes three AI agents argue opposing legal positions, forces them to cross-examine each other, sends their work to a specialist judge panel, and then has a Chief Judge synthesize everything into a final ruling — with every factual claim traced back to a verified source.
+    </p>
+
+    <div class="callout callout-indigo">
+      <strong>Core Design Principle</strong>
+      The goal is not to replace legal counsel. It is to reason about legal situations with a level of rigor, source-tracing, and epistemic transparency that a single AI model cannot achieve on its own. Every claim in the output carries a provenance marker: settled, disputed, or single-source.
+    </div>
+
+    <h3>The problem with single-model legal AI</h3>
+    <ul>
+      <li><strong>No adversarial pressure</strong> — a model arguing one side with no opponent will not surface its own weakest points</li>
+      <li><strong>No citation discipline</strong> — without enforcement, models invent case names, statute numbers, and holdings</li>
+      <li><strong>No epistemic grading</strong> — output doesn't distinguish "everyone agrees" from "this is contested"</li>
+      <li><strong>No self-correction loop</strong> — the first draft is the final draft</li>
+    </ul>
+
+    <h3>What Council of LLMs does instead</h3>
+    <ul>
+      <li>Three different AI models argue plaintiff, defense, and neutral positions from the same research base</li>
+      <li>Each argument goes through a Build → Critique → Refine loop before being used</li>
+      <li>All three positions face cross-examination by opposing advocates</li>
+      <li>A dedicated consensus measurement step quantifies how much the advocates agreed</li>
+      <li>Three specialist sub-judges (Fact, Law, Precedent) analyze different dimensions in parallel</li>
+      <li>The Chief Judge only reads structured outputs from all prior phases — not the raw query</li>
+      <li>Every citation in the final ruling is programmatically verified against the research bundle</li>
+      <li>A Devil's Advocate runs after the ruling to surface what the Chief Judge might have missed</li>
+    </ul>
+  </div>
+
+  <!-- ── ARCHITECTURE ── -->
+  <div id="architecture">
+    <h2>Architecture</h2>
+
+    <p>
+      The pipeline is sequential at the phase level but parallel within phases. Each phase produces a structured JSON bundle that becomes the input for the next phase. No phase receives the raw user query directly except Phase 1 — downstream phases only see what prior phases have already structured and validated.
+    </p>
+
+    <!-- ARCHITECTURE DIAGRAM -->
+    <div class="arch-diagram">
+      <div class="arch-flow">
+
+        <!-- Phase 1 -->
+        <div class="arch-row">
+          <div class="arch-phase">
+            <div class="arch-phase-num">Phase 1</div>
+            <div class="arch-phase-name">Intelligence Agent</div>
+            <div class="arch-phase-model">
+              <span class="m-sonnet">Sonnet 4.6</span>
+              <span class="m-sonnet">+ Extended Thinking</span>
+            </div>
+            <div class="arch-output">
+              Output → <code>IntelBundle</code>: caseType, legalIssues[], parties, burdenOfProof, complexityLevel, tavilyConfig
+            </div>
+          </div>
+        </div>
+        <div class="arch-connector"></div>
+
+        <!-- Phase 2 -->
+        <div class="arch-row">
+          <div class="arch-phase">
+            <div class="arch-phase-num">Phase 2</div>
+            <div class="arch-phase-name">Research Fan-out + Synthesis</div>
+            <div class="arch-phase-model">
+              <span class="m-haiku">Haiku ×3 (parallel)</span>
+              <span class="m-sonnet">Sonnet synth</span>
+              <span class="m-tavily">Tavily 0–9 searches</span>
+            </div>
+            <div class="arch-output">
+              Output → <code>ResearchBundle</code>: sources[src-1…N], keyStatutes[], precedents[], plaintiff/defenseStrengths[]
+            </div>
+          </div>
+        </div>
+        <div class="arch-connector"></div>
+
+        <!-- Phase 3 -->
+        <div class="arch-row">
+          <div style="flex:1">
+            <div class="arch-phase-num" style="padding-left:4px;margin-bottom:6px">Phase 3 — Advocate Chains (3 parallel, each: Build → Critique → Refine)</div>
+            <div class="arch-fan">
+              <div class="arch-fan-item">
+                <div class="arch-phase-name">Plaintiff</div>
+                <div class="arch-phase-model">
+                  <span class="m-o4">o4-mini build</span>
+                  <span class="m-haiku">Haiku critique</span>
+                  <span class="m-o4">o4-mini refine</span>
+                </div>
+              </div>
+              <div class="arch-fan-item">
+                <div class="arch-phase-name">Defense</div>
+                <div class="arch-phase-model">
+                  <span class="m-gemini">Gemini 2.5 build</span>
+                  <span class="m-haiku">Haiku critique</span>
+                  <span class="m-gemini">Gemini 2.5 refine</span>
+                </div>
+              </div>
+              <div class="arch-fan-item">
+                <div class="arch-phase-name">Neutral</div>
+                <div class="arch-phase-model">
+                  <span class="m-sonnet">Sonnet build</span>
+                  <span class="m-haiku">Haiku critique</span>
+                  <span class="m-sonnet">Sonnet refine</span>
+                </div>
+              </div>
+            </div>
+            <div class="arch-output" style="padding-left:4px;margin-top:8px">
+              Output → <code>AdvocateBundle</code>: {plaintiff, defense, neutral} × {argument, keyPoints[], citations[]}
+            </div>
+          </div>
+        </div>
+        <div class="arch-connector"></div>
+
+        <!-- Phase 4 -->
+        <div class="arch-row">
+          <div class="arch-phase">
+            <div class="arch-phase-num">Phase 4</div>
+            <div class="arch-phase-name">Cross-Examination + Consensus Measurement</div>
+            <div class="arch-phase-model">
+              <span class="m-haiku">Haiku ×3 rebuttals</span>
+              <span class="m-sonnet">Sonnet consensus</span>
+            </div>
+            <div class="arch-output">
+              Output → <code>CrossExam</code>: rebuttals[], consensusLevel (enum), divergentClaims[], agreedFacts[]
+            </div>
+          </div>
+        </div>
+        <div class="arch-connector"></div>
+
+        <!-- Phase 5 -->
+        <div class="arch-row">
+          <div style="flex:1">
+            <div class="arch-phase-num" style="padding-left:4px;margin-bottom:6px">Phase 5 — Judge Panel (3 parallel specialists)</div>
+            <div class="arch-fan">
+              <div class="arch-fan-item">
+                <div class="arch-phase-name">Fact Judge</div>
+                <div class="arch-phase-model">
+                  <span class="m-sonnet">Sonnet 4.6</span>
+                  <span class="m-sonnet">+ Thinking</span>
+                </div>
+              </div>
+              <div class="arch-fan-item">
+                <div class="arch-phase-name">Law Judge</div>
+                <div class="arch-phase-model">
+                  <span class="m-o4">o4-mini</span>
+                </div>
+              </div>
+              <div class="arch-fan-item">
+                <div class="arch-phase-name">Precedent Judge</div>
+                <div class="arch-phase-model">
+                  <span class="m-gemini">Gemini 2.5 Pro</span>
+                </div>
+              </div>
+            </div>
+            <div class="arch-output" style="padding-left:4px;margin-top:8px">
+              Output → <code>JudgePanel</code>: factJudge{disputed/undisputed}, lawJudge{statutes, tests}, precedentJudge{cases, favors}, minorityFinding
+            </div>
+          </div>
+        </div>
+        <div class="arch-connector"></div>
+
+        <!-- Phase 6 -->
+        <div class="arch-row">
+          <div class="arch-phase">
+            <div class="arch-phase-num">Phase 6</div>
+            <div class="arch-phase-name">Chief Judge — Hybrid Escalation</div>
+            <div class="arch-phase-model">
+              <span class="m-sonnet">Sonnet 4.6 default (~80%)</span>
+              <span class="m-opus">Opus 4.6 + 16k thinking when complex + high disagreement (~20%)</span>
+            </div>
+            <div class="arch-output">
+              Output → <code>Ruling</code>: findingsOfFact[], conclusionsOfLaw[], ruling, rationale, citedAuthorities[], epistemicMarkers[], minorityReport
+            </div>
+          </div>
+        </div>
+        <div class="arch-connector"></div>
+
+        <!-- Phase 7 -->
+        <div class="arch-row">
+          <div style="flex:1">
+            <div class="arch-phase-num" style="padding-left:4px;margin-bottom:6px">Phase 7 — Post-Ruling Checks (parallel)</div>
+            <div class="arch-fan">
+              <div class="arch-fan-item">
+                <div class="arch-phase-name">7a. Devil's Advocate</div>
+                <div class="arch-phase-model">
+                  <span class="m-haiku">Haiku — contrarian</span>
+                </div>
+                <div class="arch-output">Assumptions, missed args, biases, overconfident claims</div>
+              </div>
+              <div class="arch-fan-item">
+                <div class="arch-phase-name">7b. Citation Integrity</div>
+                <div class="arch-phase-model">
+                  <span class="m-haiku">Programmatic + Haiku re-prompt</span>
+                </div>
+                <div class="arch-output">Every citedAuthority verified against ResearchBundle src-N IDs</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <h3>Data flow: how each phase feeds the next</h3>
+    <p>
+      The architecture was designed so that every LLM call sees only the output of prior phases — never raw free-text from earlier models. This is structural hallucination prevention: a model cannot build on something that wasn't already structured and validated.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Phase</th>
+          <th>Reads</th>
+          <th>Produces</th>
+          <th>Downstream consumers</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>1 — Intel</td><td>Raw user query + conversation history</td><td>IntelBundle (JSON)</td><td>All phases</td></tr>
+        <tr><td>2 — Research</td><td>IntelBundle + RAG + Tavily</td><td>ResearchBundle (JSON)</td><td>3, 4, 5, 6, 7b</td></tr>
+        <tr><td>3 — Advocates</td><td>IntelBundle + ResearchBundle</td><td>AdvocateBundle (JSON)</td><td>4, 5, 6</td></tr>
+        <tr><td>4 — Cross-exam</td><td>AdvocateBundle + ResearchBundle</td><td>CrossExam + consensusLevel (JSON)</td><td>5, 6</td></tr>
+        <tr><td>5 — Judge Panel</td><td>All prior bundles</td><td>JudgePanel (JSON)</td><td>6</td></tr>
+        <tr><td>6 — Chief Judge</td><td>Everything above</td><td>Ruling (JSON, streamed)</td><td>7</td></tr>
+        <tr><td>7 — Checks</td><td>Ruling + ResearchBundle</td><td>DA critique + citation status</td><td>UI display</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Why different models for different roles</h3>
+    <p>
+      Each model in this pipeline was chosen because of a genuine strength match — not because one model is "better" in general. Using the same model for every role would create blind spots: the same reasoning patterns, the same failure modes, the same latent biases.
+    </p>
+
+    <table>
+      <thead><tr><th>Model</th><th>Role</th><th>Why this model</th></tr></thead>
+      <tbody>
+        <tr><td><code>Sonnet 4.6</code></td><td>Intel Agent, Neutral Advocate, Synthesis, Consensus, Fact Judge, Chief Judge (default)</td><td>Best general reasoning at mid cost; extended thinking gives it slow deliberate analysis</td></tr>
+        <tr><td><code>Haiku 4.5</code></td><td>Research fan-out ×3, Critique steps, Rebuttals ×3, DA Critique, Citation re-prompt</td><td>Fast, cheap, reliable JSON; no over-generation; ideal for structured grounding tasks</td></tr>
+        <tr><td><code>Opus 4.6</code></td><td>Chief Judge (escalation path only, ~20%)</td><td>Most capable model for highest-stakes synthesis; 16k thinking budget for complex cases</td></tr>
+        <tr><td><code>o4-mini</code></td><td>Plaintiff Advocate, Law Judge</td><td>OpenAI native reasoning; different failure modes than Anthropic; Law Judge benefits from formal doctrinal reasoning style</td></tr>
+        <tr><td><code>Gemini 2.5 Pro</code></td><td>Defense Advocate, Precedent Judge</td><td>Strong at analogical reasoning and case pattern matching; third independent perspective breaks Anthropic/OpenAI duopoly</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── PHASES ── -->
+  <div id="phases">
+    <h2>The Seven Phases</h2>
+
+    <!-- Phase 1 -->
+    <div class="phase-card" id="phase-1">
+      <div class="phase-card-header">
+        <div class="phase-badge">1</div>
+        <div>
+          <div class="phase-card-title">Intelligence Agent</div>
+          <div class="phase-card-subtitle">Sonnet 4.6 with adaptive extended thinking · Reads query + conversation history</div>
+        </div>
+      </div>
+
+      <p>
+        Before any research or argumentation begins, the Intelligence Agent reads the user's query and converts it into a structured <strong>IntelBundle</strong>. This is the most important phase for the quality of everything that follows — if case classification is wrong, every downstream phase inherits that error.
+      </p>
+
+      <p>
+        Extended thinking is enabled here with an adaptive budget (3,000–12,000 tokens depending on complexity). For a straightforward landlord-tenant dispute, the model gets 3,000 thinking tokens. For a multi-party constitutional case with conflicting precedent, it gets 12,000. This is important: extended thinking allows the model to reason through ambiguous multi-part queries before committing to a classification, rather than pattern-matching on surface features.
+      </p>
+
+      <p>
+        The phase also accepts <strong>conversation history</strong> (last 10 exchanges). If a user asked about a contract dispute and then follows up with "what if the defendant was a minor?", the Intel Agent detects this is a follow-up, carries forward the existing <code>legalIssues[]</code>, and sets <code>isFollowUp: true</code> — preventing the pipeline from re-researching facts it already knows.
+      </p>
+
+      <div class="phase-grid">
+        <div class="phase-grid-item">
+          <h5>Output Schema</h5>
+          <code>caseType</code>, <code>legalIssues[]</code>, <code>parties</code>, <code>burdenOfProof</code>, <code>keyFacts[]</code>, <code>jurisdiction</code>, <code>complexityLevel</code>, <code>isFollowUp</code>, <code>tavilyConfig</code>
+        </div>
+        <div class="phase-grid-item">
+          <h5>Tavily Routing Decision</h5>
+          The Intel Agent decides how many web searches to fire: 0 for stable settled doctrine (First Amendment text, classical negligence), 3 for moderately volatile law, 6 for evolving areas, 9 for regulatory/immigration/tax where statutes change frequently.
+        </div>
+      </div>
+
+      <div class="callout callout-amber" style="margin-top:16px">
+        <strong>Design Decision</strong>
+        Adaptive thinking budgets reduce Phase 1 cost by ~60% for simple queries. A question about "what is the statute of limitations for contract breach in California" does not need the same reasoning depth as "is a non-compete agreement enforceable after a company acquisition that included a change of control clause."
+      </div>
+    </div>
+
+    <!-- Phase 2 -->
+    <div class="phase-card" id="phase-2">
+      <div class="phase-card-header">
+        <div class="phase-badge">2</div>
+        <div>
+          <div class="phase-card-title">Research Fan-out</div>
+          <div class="phase-card-subtitle">Haiku ×3 parallel + Sonnet synthesis + Tavily web search</div>
+        </div>
+      </div>
+
+      <p>
+        Three Haiku models run simultaneously, each tasked with researching from a different perspective: one looking for plaintiff-favorable authorities, one for defense-favorable, and one for neutral procedural standards. This parallel fan-out is why the research phase doesn't take three times as long as a single call.
+      </p>
+
+      <p>
+        Each researcher draws from two sources: the <strong>RAG knowledge base</strong> (51 real US law documents covering 11 legal domains) and optionally <strong>Tavily web search</strong> (0–9 real-time searches, decided by Phase 1). The RAG provides stable doctrine — statute text, landmark case holdings, foundational legal tests. Tavily provides recency — recent rulings, regulatory updates, jurisdiction-specific developments.
+      </p>
+
+      <p>
+        After the three researchers return, Sonnet 4.6 synthesizes all three perspectives plus the Tavily results into a unified <strong>ResearchBundle</strong>. Crucially, all source IDs are normalized at this step to <code>src-1</code>, <code>src-2</code>, etc. — stable, predictable identifiers that every downstream phase can cite without inventing new IDs.
+      </p>
+
+      <div class="callout callout-green">
+        <strong>Why Source ID Normalization Matters</strong>
+        Before this normalization step existed, the synthesizer would generate IDs like <code>"testerman-moulton-1923"</code>, and the Chief Judge would later reference something like <code>"testerman1923"</code>. The programmatic citation checker would correctly flag this mismatch — but no source actually disappeared. By normalizing to src-N immediately, every downstream model gets clear, unambiguous citation targets.
+      </div>
+
+      <p>
+        The ResearchBundle is also <strong>prompt-cached</strong> using Anthropic's cache-control API. This means the ~17 downstream LLM calls that read the ResearchBundle pay only 10% of the normal input token cost for that content. For a bundle of ~4,000 tokens read 17 times, this saves approximately $0.34 per query.
+      </p>
+    </div>
+
+    <!-- Phase 3 -->
+    <div class="phase-card" id="phase-3">
+      <div class="phase-card-header">
+        <div class="phase-badge">3</div>
+        <div>
+          <div class="phase-card-title">Advocate Chains</div>
+          <div class="phase-card-subtitle">3 parallel chains · Each: Build (reasoning model) → Critique (Haiku) → Refine (reasoning model)</div>
+        </div>
+      </div>
+
+      <p>
+        This is the core of the adversarial design. Three advocates build arguments from the same ResearchBundle — but they are different AI systems with different underlying training, different reasoning approaches, and different tendencies. The Plaintiff advocate (o4-mini) leans toward formal argumentation. The Defense advocate (Gemini 2.5 Pro) excels at analogical reasoning and finding alternative framings. The Neutral advocate (Sonnet 4.6) focuses on procedural correctness and what the law actually says rather than what a party wants it to say.
+      </p>
+
+      <p>
+        Each advocate goes through a three-step chain:
+      </p>
+
+      <ol>
+        <li><strong>Build</strong> — the advocate constructs the strongest argument it can, citing only sources present in the ResearchBundle</li>
+        <li><strong>Critique</strong> — a Haiku model reads the argument against the ResearchBundle and flags any factual inaccuracies, unsupported claims, or sources that don't actually say what the advocate claimed</li>
+        <li><strong>Refine</strong> — the original advocate reads its own argument plus the critique and produces a corrected, strengthened version</li>
+      </ol>
+
+      <p>
+        Haiku was chosen for the critique step deliberately. It is fast, cheap, and the critique task is purely mechanical: "does this factual claim appear in the ResearchBundle?" The critique does not argue the other side — it only fact-checks.
+      </p>
+
+      <div class="callout callout-indigo">
+        <strong>Why Three Different AI Providers</strong>
+        If all three advocates were Anthropic models, they would share the same fine-tuning biases, the same RLHF tendencies, and potentially the same systematic errors. Using o4-mini (OpenAI), Gemini 2.5 Pro (Google), and Sonnet 4.6 (Anthropic) as advocates means disagreements between them are more likely to reflect genuine legal uncertainty rather than coincidental agreement from shared training data.
+      </div>
+    </div>
+
+    <!-- Phase 4 -->
+    <div class="phase-card" id="phase-4">
+      <div class="phase-card-header">
+        <div class="phase-badge">4</div>
+        <div>
+          <div class="phase-card-title">Cross-Examination + Consensus Measurement</div>
+          <div class="phase-card-subtitle">Each advocate attacks the other two · Sonnet measures how much they agreed</div>
+        </div>
+      </div>
+
+      <p>
+        Each advocate is shown the keyPoints from the other two positions and asked to produce targeted rebuttals — short, specific attack points, each under 20 words. The three rebuttals run in parallel using Haiku. The brevity constraint is deliberate: it forces the model to identify the single most damaging attack rather than producing verbose paragraph-length rebuttals that can drift off-topic.
+      </p>
+
+      <p>
+        After the rebuttals, Sonnet 4.6 performs a <strong>Consensus Measurement</strong> step. It reads all three advocate positions plus all three rebuttals and produces:
+      </p>
+
+      <ul>
+        <li><code>consensusLevel</code>: one of five levels from STRONG_CONSENSUS to FUNDAMENTAL_DISAGREEMENT</li>
+        <li><code>divergentClaims[]</code>: the specific factual or legal claims where advocates disagreed</li>
+        <li><code>agreedFacts[]</code>: facts that all three advocates accepted</li>
+      </ul>
+
+      <p>
+        The <code>consensusLevel</code> serves two purposes: it directly feeds the Chief Judge's escalation decision in Phase 6, and it appears in the UI as a color-coded badge so the user immediately understands the epistemic state of the case — was this a clear-cut situation or was it genuinely contested?
+      </p>
+    </div>
+
+    <!-- Phase 5 -->
+    <div class="phase-card" id="phase-5">
+      <div class="phase-card-header">
+        <div class="phase-badge">5</div>
+        <div>
+          <div class="phase-card-title">Judge Panel</div>
+          <div class="phase-card-subtitle">Three parallel specialist sub-judges · Each given a single narrow question to answer</div>
+        </div>
+      </div>
+
+      <p>
+        Instead of asking one judge to handle facts, law, and precedent simultaneously, the pipeline separates these concerns into three specialists running in parallel:
+      </p>
+
+      <ul>
+        <li><strong>Fact Judge (Sonnet 4.6 + extended thinking)</strong>: Determines which facts are undisputed and which are genuinely contested between the parties. Explicitly instructed not to interpret law. Extended thinking is enabled here because distinguishing disputed from undisputed facts requires careful reading of what each advocate actually claimed versus assumed.</li>
+        <li><strong>Law Judge (o4-mini)</strong>: Identifies the applicable legal standards, statutes, and formal legal tests. o4-mini's native reasoning mode produces precise, structured doctrinal analysis. Explicitly instructed not to determine facts.</li>
+        <li><strong>Precedent Judge (Gemini 2.5 Pro)</strong>: Finds analogous cases from the ResearchBundle and prior context and assesses which side each precedent favors. Gemini's strength at analogical pattern-matching makes it well-suited for this role.</li>
+      </ul>
+
+      <p>
+        If the three sub-judges diverge significantly — for example, if the Precedent Judge says prior cases favor the plaintiff but the Law Judge identifies a statutory defense that overrides those precedents — a <code>minorityFinding</code> flag is set. The Chief Judge sees this flag and must address the disagreement explicitly in its ruling.
+      </p>
+    </div>
+
+    <!-- Phase 6 -->
+    <div class="phase-card" id="phase-6">
+      <div class="phase-card-header">
+        <div class="phase-badge">6</div>
+        <div>
+          <div class="phase-card-title">Chief Judge</div>
+          <div class="phase-card-subtitle">Hybrid Sonnet/Opus · Reads every prior phase · Streams output token by token</div>
+        </div>
+      </div>
+
+      <p>
+        The Chief Judge is the only model in the pipeline that reads everything. Its input is a structured context block containing: the IntelBundle, the ResearchBundle (cached), the three advocate arguments and rebuttals, the consensusLevel and divergentClaims from Phase 4, and the three sub-judge findings from Phase 5.
+      </p>
+
+      <p>
+        The model selection is <strong>adaptive</strong>. For most queries (~80%), Sonnet 4.6 with a moderate thinking budget is used — it is faster, cheaper, and more than capable of synthesizing well-structured prior phases. Opus 4.6 with a 16,000-token thinking budget is only invoked when two conditions are both true: the case was classified as <code>complex</code> by Phase 1, and the consensus level reached at least SIGNIFICANT_DISAGREEMENT in Phase 4. This hybrid design avoids the $1.20 Opus thinking cost for routine cases while preserving the most capable model for the genuinely hard ones.
+      </p>
+
+      <p>
+        The ruling is <strong>streamed</strong> token by token to the UI. Users see the Chief Judge's output appear in real time while the post-ruling checks in Phase 7 are still being prepared.
+      </p>
+
+      <div class="callout callout-red">
+        <strong>Citation Enforcement in the Prompt</strong>
+        The Chief Judge's system prompt explicitly lists every valid source ID: "You MUST use ONLY these exact IDs in citedAuthorities and findingsOfFact.sources. Valid IDs: src-1, src-2, src-3... Do NOT invent new IDs. If evidence is thin, state low confidence rather than fabricate." This is the first line of citation defense — before any programmatic check.
+      </div>
+
+      <p>The output schema is designed to produce epistemic transparency on every claim:</p>
+
+      <pre>
+<span class="key">{</span>
+  <span class="key">"findingsOfFact"</span>: [{ <span class="str">"fact"</span>: <span class="val">"..."</span>, <span class="str">"status"</span>: <span class="val">"settled|disputed"</span>, <span class="str">"sources"</span>: [<span class="val">"src-N"</span>] }],
+  <span class="key">"conclusionsOfLaw"</span>: [{ <span class="str">"conclusion"</span>: <span class="val">"..."</span>, <span class="str">"basis"</span>: <span class="val">"..."</span>, <span class="str">"advocateAttribution"</span>: <span class="val">"plaintiff|defense|neutral|all"</span> }],
+  <span class="key">"ruling"</span>: <span class="val">"who prevails and on what grounds"</span>,
+  <span class="key">"rationale"</span>: <span class="val">"detailed reasoning"</span>,
+  <span class="key">"citedAuthorities"</span>: [{ <span class="str">"id"</span>: <span class="val">"src-N"</span>, <span class="str">"title"</span>: <span class="val">"..."</span>, <span class="str">"proposition"</span>: <span class="val">"..."</span> }],
+  <span class="key">"epistemicMarkers"</span>: [{ <span class="str">"claim"</span>: <span class="val">"..."</span>, <span class="str">"status"</span>: <span class="val">"settled|disputed|single_source"</span> }],
+  <span class="key">"minorityReport"</span>: <span class="val">"string or null"</span>,
+  <span class="key">"modelUsed"</span>: <span class="val">"anthropic/claude-sonnet-4.6"</span>,
+  <span class="key">"escalated"</span>: <span class="val">false</span>
+<span class="key">}</span></pre>
+    </div>
+
+    <!-- Phase 7 -->
+    <div class="phase-card" id="phase-7">
+      <div class="phase-card-header">
+        <div class="phase-badge">7</div>
+        <div>
+          <div class="phase-card-title">Post-Ruling Checks</div>
+          <div class="phase-card-subtitle">Two parallel tasks · Neither modifies the ruling except to replace invalid citations</div>
+        </div>
+      </div>
+
+      <p>
+        After the Chief Judge has ruled, two verification tasks run in parallel:
+      </p>
+
+      <p>
+        <strong>7a. Devil's Advocate Critique</strong> — Haiku is given the ruling with a contrarian system prompt: "Aggressively challenge this ruling. Find every weakness, assumption, and potential error." It produces four categories of critique: unquestioned assumptions, missed counterarguments, potential framing biases, and overconfident claims. This appears in the UI as a red-bordered advisory block. It does not change the ruling — it is there so the user knows what the system itself identified as its own weaknesses.
+      </p>
+
+      <p>
+        <strong>7b. Citation Integrity Check</strong> — Every <code>citedAuthority</code> in the ruling is checked against the ResearchBundle's source IDs. The check is programmatic: exact ID match first, then title substring fuzzy match as a fallback. If any citation cannot be verified, Haiku is re-prompted once with the list of valid source IDs and asked to replace the unverified citations with correct ones. The UI shows a green "citations verified" or amber "N citations corrected" indicator.
+      </p>
+
+      <div class="callout callout-green">
+        <strong>Why the Re-Prompt Works</strong>
+        Rather than failing when the Chief Judge invents a citation, the system has a recovery path: the re-prompt gives Haiku an explicit list of valid IDs and asks it to substitute. This is dramatically cheaper than re-running the Chief Judge (Haiku re-prompt: ~$0.001 vs. Chief Judge: ~$0.30–$1.20).
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ANTI-HALLUCINATION ── -->
+  <div id="anti-hallucination">
+    <h2>How hallucinations are reduced</h2>
+
+    <p>
+      Hallucination in LLMs is not binary — it exists on a spectrum from subtle over-confidence to outright fabrication. The Council of LLMs pipeline addresses this spectrum with multiple overlapping mechanisms rather than any single fix.
+    </p>
+
+    <div class="callout callout-indigo">
+      <strong>Design Philosophy</strong>
+      No single mechanism is sufficient. Extended thinking helps but doesn't eliminate hallucinations. Citation enforcement helps but doesn't prevent confident-but-wrong legal analysis. The approach is defense-in-depth: every layer that exists reduces the probability that the output contains a claim that is both wrong and unchallenged.
+    </div>
+
+    <div class="timeline">
+
+      <div class="timeline-item">
+        <h4>1. Adversarial architecture — wrong claims get attacked</h4>
+        <p>When the Plaintiff advocate claims that "courts have uniformly held X," the Defense advocate is specifically prompted to attack that claim. If it is wrong or overstated, the cross-examination step will surface it. A claim that survives three advocate positions and three rebuttals is more likely to be well-grounded than a claim from a single model with no adversary.</p>
+      </div>
+
+      <div class="timeline-item">
+        <h4>2. Extended thinking on reasoning-critical phases</h4>
+        <p>Phases 1, 3 (Plaintiff/Defense), 5 (Fact Judge), and 6 (Chief Judge) use extended thinking. This gives the model a separate reasoning scratchpad to work through conflicting information before committing to an answer. In practice, this reduces the confident-but-wrong pattern: models with extended thinking are more likely to express uncertainty when they should.</p>
+      </div>
+
+      <div class="timeline-item">
+        <h4>3. Source ID normalization — citations are auditable</h4>
+        <p>After synthesis, all ResearchBundle sources are relabeled <code>src-1</code>, <code>src-2</code>, etc. Every downstream phase that makes a factual claim must attribute it to one of these IDs. The IDs are a closed set known at generation time — any ID that doesn't match is provably invented.</p>
+      </div>
+
+      <div class="timeline-item">
+        <h4>4. Citation enforcement in the Chief Judge prompt</h4>
+        <p>The Chief Judge's prompt explicitly lists every valid source ID and includes the instruction: "If evidence is thin, state low confidence rather than fabricate." This is the simplest and most direct anti-hallucination intervention: tell the model explicitly what sources exist.</p>
+      </div>
+
+      <div class="timeline-item">
+        <h4>5. Programmatic citation integrity check (Phase 7b)</h4>
+        <p>After the ruling is generated, every cited authority is checked against the ResearchBundle programmatically — no LLM involved in the verification. A citation either matches a known source ID or it does not. If it doesn't match, the re-prompt corrects it.</p>
+      </div>
+
+      <div class="timeline-item">
+        <h4>6. Epistemic markers on every claim</h4>
+        <p>The output explicitly labels each claim as <code>settled</code> (all advocates agreed + 2+ sources), <code>disputed</code> (advocates disagreed, from divergentClaims[]), or <code>single_source</code> (only one ResearchBundle source supports it). These are not post-hoc labels — they are derived from the structured pipeline data, not from the Chief Judge's self-assessment.</p>
+      </div>
+
+      <div class="timeline-item">
+        <h4>7. Haiku critique step in every advocate chain</h4>
+        <p>Before an advocate's argument is used, a separate Haiku model reads the argument against the ResearchBundle and flags any claim that cannot be supported. The advocate must address these in the Refine step. This means factual inaccuracies introduced in the Build step rarely survive to Phase 4.</p>
+      </div>
+
+      <div class="timeline-item">
+        <h4>8. Three-provider independence</h4>
+        <p>Using Anthropic, OpenAI, and Google models as advocates means systematic biases in any one provider's training are contested by two others. If Gemini has a tendency to over-weight certain types of precedents, Sonnet and o4-mini are not subject to that same tendency and will produce a different analysis.</p>
+      </div>
+
+      <div class="timeline-item">
+        <h4>9. Devil's Advocate makes weaknesses explicit</h4>
+        <p>Even after a verified ruling, Phase 7a surfaces the ruling's own weak points. The user sees what the system itself thinks might be wrong. This is epistemic honesty — the system does not present its output as definitive legal authority.</p>
+      </div>
+
+      <div class="timeline-item">
+        <h4>10. Structured JSON at every phase boundary</h4>
+        <p>Every phase consumes and produces structured JSON. Free-text reasoning from one model cannot propagate unchecked into the next phase — it must be parsed into a schema. Fields that don't parse correctly trigger fallback logic or surface an explicit error. This prevents "reasoning drift" where one model's confident prose becomes the unquestioned premise for all subsequent models.</p>
+      </div>
+
+    </div>
+
+    <h3>Robust JSON parsing — 7-strategy fallback</h3>
+    <p>
+      LLMs frequently produce nearly-valid JSON: markdown code fences around the output, trailing commas, literal newline characters inside string values, and truncated output when token limits are hit. Rather than failing on any of these, the pipeline uses a sequential 7-strategy parser:
+    </p>
+
+    <table>
+      <thead><tr><th>#</th><th>Strategy</th><th>Handles</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Strip markdown fences, direct parse</td><td>Clean JSON with ``` wrappers</td></tr>
+        <tr><td>2</td><td>Fix literal newlines inside strings, retry</td><td>Unescaped \n in string values</td></tr>
+        <tr><td>3</td><td>Remove trailing commas, retry</td><td><code>[...,]</code> and <code>{...,}</code></td></tr>
+        <tr><td>4</td><td>Extract embedded ```json fence, retry</td><td>Thinking models that wrap JSON in a code block inside their response</td></tr>
+        <tr><td>5</td><td>Extract outermost <code>{ }</code> or <code>[ ]</code>, retry</td><td>Prose before/after the JSON object</td></tr>
+        <tr><td>6</td><td>Truncation repair: close open strings + brackets</td><td>Token-limit truncation mid-JSON string</td></tr>
+        <tr><td>7</td><td>Throw with the first 120 characters for debugging</td><td>—</td></tr>
+      </tbody>
+    </table>
+
+    <p>
+      The truncation repair strategy (step 6) was added after encountering errors like <code>parseJSON failed: { "summary": "Regina v. Dudley and Stephens (1884)...</code> — a response that was cut off mid-string when the model hit its token limit. The repair function walks the JSON character-by-character tracking bracket depth and string state, then closes any open structures to produce parseable output.
+    </p>
+  </div>
+
+  <!-- ── COST ── -->
+  <div id="cost">
+    <h2>Cost Engineering</h2>
+
+    <p>
+      The first design of this pipeline would have cost approximately <strong>$1.96 per query</strong> with Opus 4.6 and 16k extended thinking on every call. Through a series of targeted optimizations, the average cost was reduced to approximately <strong>$0.73 per query</strong> — a 63% reduction — without removing any of the anti-hallucination mechanisms.
+    </p>
+
+    <h3>Optimization 1 — Prompt caching</h3>
+    <p>
+      The ResearchBundle and IntelBundle are wrapped with Anthropic's <code>cache_control: { type: "ephemeral" }</code> header after Phase 2. Every subsequent LLM call that reads these bundles — 17 calls across Phases 3, 4, 5, and 6 — pays only 10% of the normal input token cost for that cached content. For a typical ResearchBundle of ~4,000 tokens at Sonnet's input rate, this saves approximately $0.34 per query.
+    </p>
+
+    <h3>Optimization 2 — Adaptive thinking budgets</h3>
+    <p>
+      Extended thinking is expensive: each token in the thinking budget costs the same as an output token. Rather than using a fixed budget for all queries, the pipeline ties the budget to the <code>complexityLevel</code> that Phase 1 assigns:
+    </p>
+
+    <table>
+      <thead><tr><th>Complexity</th><th>Sonnet thinking budget</th><th>Opus thinking budget</th></tr></thead>
+      <tbody>
+        <tr><td>Simple</td><td>3,000 tokens</td><td>6,000 tokens</td></tr>
+        <tr><td>Moderate</td><td>6,000 tokens</td><td>10,000 tokens</td></tr>
+        <tr><td>Complex</td><td>12,000 tokens</td><td>16,000 tokens</td></tr>
+      </tbody>
+    </table>
+
+    <p>
+      Most legal queries are simple or moderate. An easy question about negligence elements gets 3,000 thinking tokens at Phase 1 instead of 16,000 — a 5× cost reduction for that call alone.
+    </p>
+
+    <h3>Optimization 3 — Hybrid Chief Judge</h3>
+    <p>
+      Opus 4.6 with a 16k thinking budget costs approximately $1.20 per call. This is the single largest cost item in the pipeline. Rather than using it for every query, Opus is only invoked when <em>both</em> conditions are true:
+    </p>
+    <ul>
+      <li>Phase 1 classified the case as <code>complex</code></li>
+      <li>Phase 4 measured consensus at <code>SIGNIFICANT_DISAGREEMENT</code> or <code>FUNDAMENTAL_DISAGREEMENT</code></li>
+    </ul>
+    <p>
+      For approximately 80% of queries, Sonnet 4.6 serves as Chief Judge. This brings the average cost of Phase 6 from $1.20 to approximately $0.30 per query.
+    </p>
+
+    <h3>Optimization 4 — Haiku for all structural tasks</h3>
+    <p>
+      Haiku 4.5 is approximately 20× cheaper per token than Sonnet 4.6 for input and 12× cheaper for output. The pipeline uses Haiku for every task that is mechanical rather than creative: the three research fan-out calls, three critique steps, three cross-examination rebuttals, the Devil's Advocate critique, and the citation re-prompt. Nine of the 23 LLM calls are Haiku.
+    </p>
+
+    <h3>Optimization 5 — Smart Tavily routing</h3>
+    <p>
+      Tavily web search is billed per request. Phase 1's Intel Agent explicitly decides how many searches to fire based on domain volatility. Classical tort law, established constitutional doctrine, and common-law contract rules are stable — searching for recent rulings on "what is negligence" returns noise, not signal. For these cases, <code>searchCount: 0</code> saves the Tavily cost entirely.
+    </p>
+
+    <h3>Full cost breakdown</h3>
+
+    <table>
+      <thead><tr><th>Phase</th><th>Calls</th><th>Model(s)</th><th>Avg cost</th><th>Max cost</th></tr></thead>
+      <tbody>
+        <tr><td>1 — Intel</td><td>1</td><td>Sonnet 4.6 + thinking</td><td>$0.04</td><td>$0.12</td></tr>
+        <tr><td>2 — Research ×3</td><td>3</td><td>Haiku 4.5</td><td>$0.02</td><td>$0.03</td></tr>
+        <tr><td>2 — Synthesis</td><td>1</td><td>Sonnet 4.6</td><td>$0.05</td><td>$0.08</td></tr>
+        <tr><td>2 — Tavily</td><td>0–9</td><td>Tavily API</td><td>$0.02</td><td>$0.05</td></tr>
+        <tr><td>3 — Advocate Builds ×3</td><td>3</td><td>o4-mini, Gemini, Sonnet</td><td>$0.12</td><td>$0.20</td></tr>
+        <tr><td>3 — Critiques ×3</td><td>3</td><td>Haiku 4.5</td><td>$0.01</td><td>$0.02</td></tr>
+        <tr><td>3 — Refines ×3</td><td>3</td><td>o4-mini, Gemini, Sonnet</td><td>$0.10</td><td>$0.18</td></tr>
+        <tr><td>4 — Rebuttals ×3</td><td>3</td><td>Haiku 4.5</td><td>$0.01</td><td>$0.02</td></tr>
+        <tr><td>4 — Consensus</td><td>1</td><td>Sonnet 4.6</td><td>$0.03</td><td>$0.05</td></tr>
+        <tr><td>5 — Judge Panel ×3</td><td>3</td><td>Sonnet+thinking, o4-mini, Gemini</td><td>$0.15</td><td>$0.25</td></tr>
+        <tr><td>6 — Chief Judge</td><td>1</td><td>Sonnet (80%) / Opus (20%)</td><td>$0.15</td><td>$1.20</td></tr>
+        <tr><td>7a — DA Critique</td><td>1</td><td>Haiku 4.5</td><td>$0.01</td><td>$0.01</td></tr>
+        <tr><td>7b — Citation check</td><td>0–1</td><td>Programmatic + Haiku</td><td>$0.00</td><td>$0.01</td></tr>
+      </tbody>
+    </table>
+
+    <div class="cost-total">
+      <div class="label">Average cost per query</div>
+      <div class="value">~$0.73</div>
+    </div>
+    <div class="cost-total" style="margin-top:8px; background:#130f00; border-color:#b45309;">
+      <div class="label">Maximum cost (Opus escalation path)</div>
+      <div style="font-size:22px;font-weight:900;color:var(--amber)">~$1.75</div>
+    </div>
+
+    <p style="margin-top:16px; font-size:13px; color:var(--muted)">
+      All costs are approximate and based on OpenRouter pricing as of Q2 2025. Prompt caching discounts (90% on cached tokens) are already reflected in the averages above.
+    </p>
+  </div>
+
+  <!-- ── INFRASTRUCTURE ── -->
+  <div id="infrastructure">
+    <h2>Technical Infrastructure</h2>
+
+    <h3>OpenRouter as the unified LLM gateway</h3>
+    <p>
+      All five AI providers (Anthropic, OpenAI, Google, Tavily) are accessed through a single OpenRouter API key. OpenRouter exposes an OpenAI-compatible endpoint, so every model call in the pipeline uses identical request structure regardless of provider. This eliminates five separate SDK dependencies and means the pipeline can be updated to use a newer model version by changing a single string in the model constants map.
+    </p>
+
+    <pre>
+<span class="comment">// All models via one endpoint, one key</span>
+<span class="key">const M = {</span>
+  <span class="str">SONNET</span>:  <span class="val">'anthropic/claude-sonnet-4.6'</span>,
+  <span class="str">HAIKU</span>:   <span class="val">'anthropic/claude-haiku-4.5'</span>,
+  <span class="str">OPUS</span>:    <span class="val">'anthropic/claude-opus-4.6'</span>,
+  <span class="str">O4_MINI</span>: <span class="val">'openai/o4-mini'</span>,
+  <span class="str">GEMINI</span>:  <span class="val">'google/gemini-2.5-pro-preview'</span>,
+<span class="key">};</span></pre>
+
+    <h3>Server-Sent Events for live streaming</h3>
+    <p>
+      The API endpoint uses SSE (Server-Sent Events) to push pipeline progress to the browser in real time. Each phase emits a <code>phase_start</code> event when it begins and a <code>phase_complete</code> event with structured data when it finishes. The Chief Judge's ruling is streamed token-by-token via <code>stream_token</code> events, so the user sees the ruling appear as it is generated — the pipeline doesn't go silent for 30 seconds and then dump everything at once.
+    </p>
+
+    <h3>Retry logic and network resilience</h3>
+    <p>
+      OpenRouter connections occasionally terminate mid-request (ECONNRESET, ETIMEDOUT). Every non-streaming LLM call is wrapped in a retry handler that attempts up to 2 retries with exponential backoff (1.5s, 3s). Streaming calls are not retried because partial output cannot be replayed cleanly — instead, Phase 6 falls back to a non-streaming Sonnet call with <code>response_format: json_object</code> if the stream fails.
+    </p>
+
+    <h3>The response_format + extended thinking conflict</h3>
+    <p>
+      Anthropic models do not allow <code>response_format: { type: "json_object" }</code> to be used simultaneously with extended thinking. When both are requested, the model ignores the JSON constraint and generates a markdown document. The <code>llmOnce()</code> function handles this by only setting <code>response_format</code> when <code>thinking === 0</code>:
+    </p>
+
+    <pre>
+<span class="comment">// response_format and thinking are mutually exclusive on Anthropic</span>
+...(json && thinking === <span class="val">0</span> && { response_format: { type: <span class="val">'json_object'</span> } }),
+...(thinking > <span class="val">0</span> && model.startsWith(<span class="val">'anthropic/'</span>) && {
+  thinking: { type: <span class="val">'enabled'</span>, budget_tokens: thinking },
+}),</pre>
+
+    <p>
+      When thinking is enabled, the robust <code>parseJSON()</code> function handles the resulting free-text output with its 7-strategy fallback.
+    </p>
+
+    <h3>RAG Knowledge Base — 51 US law documents</h3>
+    <p>
+      The embedded knowledge base covers 11 legal domains with real statute text, landmark case holdings, and key legal tests. Each document has a keyword list for relevance scoring. The search function scores every document against the query using keyword matching, term frequency in content and title, and a 3-point bonus when the document's legal area matches the case type from IntelBundle. The top 6 documents by score are provided to Phase 2 researchers.
+    </p>
+
+    <table>
+      <thead><tr><th>Domain</th><th>Documents</th><th>Example content</th></tr></thead>
+      <tbody>
+        <tr><td>Property / Landlord-Tenant</td><td>6</td><td>CA Civil Code § 1950.5 (security deposits), FHA, adverse possession, takings clause</td></tr>
+        <tr><td>Contract Law</td><td>6</td><td>UCC Article 2, Hadley v. Baxendale foreseeability, unconscionability, parol evidence</td></tr>
+        <tr><td>Tort Law</td><td>6</td><td>Palsgraf duty, Hand formula, Greenman products liability, NYT v. Sullivan defamation</td></tr>
+        <tr><td>Employment</td><td>6</td><td>Title VII / EEOC, FLSA overtime, Faragher/Ellerth harassment, CA AB-5, FMLA</td></tr>
+        <tr><td>Constitutional</td><td>4</td><td>Brandenburg incitement test, Katz/Carpenter privacy, Bruen Second Amendment</td></tr>
+        <tr><td>Criminal</td><td>4</td><td>MPC mens rea, Miranda, Gideon right to counsel, Brady disclosure</td></tr>
+        <tr><td>Civil Procedure</td><td>5</td><td>Twombly/Iqbal pleading, Celotex summary judgment, Rule 23 class actions, Int'l Shoe</td></tr>
+        <tr><td>Family</td><td>3</td><td>Community property, child custody best-interests, UPAA prenuptials</td></tr>
+        <tr><td>Consumer Protection</td><td>3</td><td>FCRA, FTC § 5 / UCL, TILA/RESPA mortgage disclosures</td></tr>
+        <tr><td>Intellectual Property</td><td>2</td><td>Copyright fair use (Campbell v. Acuff-Rose), DTSA trade secrets</td></tr>
+        <tr><td>General</td><td>6</td><td>Statute of limitations / tolling, hearsay FRE 801, § 1983 civil rights, injunctions</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Stack</h3>
+    <ul>
+      <li><strong>Backend</strong>: Node.js (ESM), Express 4, native <code>fetch</code> — no LLM SDK dependency</li>
+      <li><strong>Frontend</strong>: Vanilla JavaScript, SSE <code>EventSource</code>, no framework</li>
+      <li><strong>APIs</strong>: OpenRouter (all LLMs), Tavily (web search)</li>
+      <li><strong>Dev server</strong>: <code>node --watch server.js</code> with graceful SIGTERM/SIGINT shutdown</li>
+      <li><strong>Total dependencies</strong>: 2 (express, dotenv)</li>
+    </ul>
+  </div>
+
+  <!-- ── UI & OUTPUT ── -->
+  <div id="ui">
+    <h2>UI and Output Format</h2>
+
+    <p>
+      The interface is split into two panels. The left panel handles input (text query or .txt/.md file upload) and shows the live pipeline progress. The right panel streams the ruling in real time.
+    </p>
+
+    <!-- SCREENSHOT MOCKUP 1 — Input + Phase Tracker -->
+    <div class="screenshot">
+      <div class="screenshot-mockup" style="flex-direction:row;align-items:stretch;padding:0;gap:0;min-height:260px;">
+        <!-- Left panel mock -->
+        <div style="width:220px;border-right:1px solid #1e2030;padding:16px;flex-shrink:0;">
+          <div style="font-size:10px;font-weight:800;color:#4b5680;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;">Legal Query</div>
+          <div style="background:#11121a;border:1px solid #1e2030;border-radius:8px;padding:10px;font-size:11px;color:#4b5680;min-height:80px;">My landlord is refusing to return my security deposit of $3,200 after I moved out…</div>
+          <div style="margin-top:8px;background:#1e1b4b;border:1px solid #3730a3;border-radius:6px;padding:8px;text-align:center;font-size:11px;font-weight:700;color:#818cf8;">Run Council →</div>
+          <div style="margin-top:6px;background:transparent;border:1px solid #1e2030;border-radius:6px;padding:6px;text-align:center;font-size:10px;color:#4b5680;">↑ Upload case document (.txt / .md)</div>
+          <div style="margin-top:14px;font-size:9px;font-weight:800;color:#4b5680;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:8px;">Pipeline Progress</div>
+          <div style="display:flex;flex-direction:column;gap:4px;">
+            <div style="background:#1a1d2e;border:1px solid #065f46;border-radius:6px;padding:6px 8px;display:flex;gap:8px;align-items:center;">
+              <div style="width:16px;height:16px;border-radius:50%;background:#022c22;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#34d399;flex-shrink:0;">1</div>
+              <div><div style="font-size:10px;font-weight:700;color:#f1f5f9;">Intelligence Agent</div><div style="font-size:9px;color:#34d399;">property · 3 searches</div></div>
+            </div>
+            <div style="background:#1a1d2e;border:1px solid #065f46;border-radius:6px;padding:6px 8px;display:flex;gap:8px;align-items:center;">
+              <div style="width:16px;height:16px;border-radius:50%;background:#022c22;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#34d399;flex-shrink:0;">2</div>
+              <div><div style="font-size:10px;font-weight:700;color:#f1f5f9;">Research Fan-out</div><div style="font-size:9px;color:#34d399;">8 sources compiled</div></div>
+            </div>
+            <div style="background:#1a1d2e;border:1px solid #3730a3;border-radius:6px;padding:6px 8px;display:flex;gap:8px;align-items:center;">
+              <div style="width:16px;height:16px;border-radius:50%;background:#1e1b4b;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#818cf8;flex-shrink:0;">3</div>
+              <div><div style="font-size:10px;font-weight:700;color:#f1f5f9;">Advocate Chains</div><div style="font-size:9px;color:#818cf8;">running…</div></div>
+            </div>
+            <div style="background:#1a1d2e;border:1px solid #1e2030;border-radius:6px;padding:6px 8px;display:flex;gap:8px;align-items:center;opacity:0.5;">
+              <div style="width:16px;height:16px;border-radius:50%;background:#1e2030;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#4b5680;flex-shrink:0;">4</div>
+              <div><div style="font-size:10px;font-weight:700;color:#94a3b8;">Cross-Examination</div></div>
+            </div>
+            <div style="background:#1a1d2e;border:1px solid #1e2030;border-radius:6px;padding:6px 8px;display:flex;gap:8px;align-items:center;opacity:0.4;">
+              <div style="width:16px;height:16px;border-radius:50%;background:#1e2030;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:900;color:#4b5680;flex-shrink:0;">5</div>
+              <div><div style="font-size:10px;font-weight:700;color:#94a3b8;">Judge Panel</div></div>
+            </div>
+          </div>
+        </div>
+        <!-- Right panel mock -->
+        <div style="flex:1;padding:20px;">
+          <div style="font-size:10px;font-weight:800;color:#4b5680;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px;">Live Output</div>
+          <div style="background:#022c22;border:1px solid #065f46;border-radius:16px;display:inline-block;font-size:10px;font-weight:800;padding:3px 12px;color:#34d399;margin-bottom:12px;">MODERATE CONSENSUS</div>
+          <div style="background:#11121a;border:1px solid #7e22ce;border-radius:8px;padding:14px;font-size:11px;color:#f1f5f9;line-height:1.8;">
+            The court finds for the Plaintiff tenant. Under California Civil Code § 1950.5, the landlord had 21 days to return the deposit with an itemized statement of deductions…<span style="animation:none;color:#818cf8;">▊</span>
+          </div>
+        </div>
+      </div>
+      <div class="screenshot-caption">Left panel: live phase tracker showing phases 1–2 complete (green), phase 3 running (blue), phases 4–5 pending. Right panel: ruling streams in real time while later phases are still executing.</div>
+    </div>
+
+    <!-- SCREENSHOT MOCKUP 2 — Final Output -->
+    <div class="screenshot">
+      <div class="screenshot-mockup" style="flex-direction:column;gap:12px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <div style="background:#022c22;border:1px solid #065f46;border-radius:16px;font-size:10px;font-weight:800;padding:3px 12px;color:#34d399;">MODERATE CONSENSUS</div>
+          <div style="background:#1c0e00;border:1px solid #92400e;border-radius:6px;font-size:10px;font-weight:700;padding:2px 8px;color:#f59e0b;">Sonnet 4.6</div>
+        </div>
+
+        <div style="font-size:10px;font-weight:800;color:#4b5680;letter-spacing:0.08em;text-transform:uppercase;margin-top:4px;">Findings of Fact</div>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <div style="background:#1a1d2e;border-left:3px solid #065f46;border-radius:4px;padding:8px 12px;font-size:11px;color:#cbd5e1;"><span style="background:#022c22;color:#34d399;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;margin-right:6px;">settled</span>Tenant vacated on July 3rd after providing 30-day notice</div>
+          <div style="background:#1a1d2e;border-left:3px solid #7c2d12;border-radius:4px;padding:8px 12px;font-size:11px;color:#cbd5e1;"><span style="background:#431407;color:#fb923c;font-size:9px;font-weight:800;padding:1px 5px;border-radius:3px;margin-right:6px;">disputed</span>Whether the carpet staining constitutes damage beyond normal wear and tear</div>
+        </div>
+
+        <div style="font-size:10px;font-weight:800;color:#4b5680;letter-spacing:0.08em;text-transform:uppercase;margin-top:8px;">Citation Integrity</div>
+        <div style="background:#022c22;border:1px solid #065f46;border-radius:6px;padding:8px 12px;font-size:11px;color:#34d399;">✓ All 4 cited authorities verified against ResearchBundle</div>
+
+        <div style="font-size:10px;font-weight:800;color:#4b5680;letter-spacing:0.08em;text-transform:uppercase;margin-top:8px;">Devil's Advocate Critique</div>
+        <div style="background:#180d06;border:1px solid #7c2d12;border-radius:8px;padding:12px 14px;">
+          <div style="font-size:10px;font-weight:800;color:#fb923c;margin-bottom:6px;">Advisory — potential weaknesses</div>
+          <div style="font-size:11px;color:#94a3b8;padding:3px 0;">The ruling assumes the deposit was held in a separate account, which was not established in evidence</div>
+          <div style="font-size:11px;color:#94a3b8;padding:3px 0;border-top:1px solid #1e0a03;margin-top:3px;">The § 1950.5 penalty analysis did not address whether landlord's reliance on contractor estimate was in good faith</div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:4px;">
+          <div style="flex:1;background:#1a1d2e;border:1px solid #1e2030;border-radius:6px;padding:7px 10px;text-align:center;font-size:10px;font-weight:700;color:#4b5680;cursor:pointer;">↓ Download Markdown</div>
+          <div style="flex:1;background:#1a1d2e;border:1px solid #1e2030;border-radius:6px;padding:7px 10px;text-align:center;font-size:10px;font-weight:700;color:#4b5680;cursor:pointer;">↓ Download PDF</div>
+        </div>
+      </div>
+      <div class="screenshot-caption">Final ruling output: consensus badge, findings of fact with settled/disputed labels, citation integrity check, Devil's Advocate critique block, and export buttons.</div>
+    </div>
+
+    <h3>Output components explained</h3>
+
+    <ul>
+      <li><strong>Consensus badge</strong> — color-coded from green (STRONG_CONSENSUS) to red (FUNDAMENTAL_DISAGREEMENT). This is the first thing a user sees and immediately communicates how much the AI advocates agreed on the underlying facts and law.</li>
+      <li><strong>Findings of fact</strong> — each finding labeled <code>settled</code> (green border) or <code>disputed</code> (red border), sourced to specific research bundle entries</li>
+      <li><strong>Conclusions of law</strong> — each conclusion attributed to the advocate that originally raised it (plaintiff / defense / neutral / all)</li>
+      <li><strong>Ruling text</strong> — streamed live; the final determination of who prevails and on what grounds</li>
+      <li><strong>Epistemic markers</strong> — inline <code>[settled]</code>, <code>[disputed]</code>, <code>[single_source]</code> tags on key claims</li>
+      <li><strong>Cited authorities</strong> — each source with its proposition; all verified against the ResearchBundle</li>
+      <li><strong>Minority report</strong> (amber border, when present) — if sub-judges diverged significantly, the dissenting analysis</li>
+      <li><strong>Devil's Advocate critique</strong> (red border) — what the system itself thinks might be wrong with the ruling</li>
+      <li><strong>Citation integrity status</strong> — green if all verified, amber if citations were corrected by the re-prompt</li>
+      <li><strong>Export</strong> — Markdown download (structured .md with all sections) or PDF (via print stylesheet)</li>
+    </ul>
+
+    <h3>File upload</h3>
+    <p>
+      Users can upload <code>.txt</code> or <code>.md</code> files instead of typing a query. The FileReader API reads the file client-side and populates the query textarea. This is useful for uploading contract documents, legal notices, case descriptions, or any document the user wants analyzed.
+    </p>
+  </div>
+
+  <div class="divider"></div>
+
+  <h2>Summary: what makes this different</h2>
+
+  <p>
+    Most AI systems for legal questions are wrappers around a single model call. The Council of LLMs is fundamentally different in four ways:
+  </p>
+
+  <ol>
+    <li><strong>Adversarial architecture</strong> — truth is tested under cross-examination, not asserted by a single confident voice</li>
+    <li><strong>Model diversity</strong> — three AI providers, each with different training and failure modes, reduce the risk that systematic model bias goes unchallenged</li>
+    <li><strong>Programmatic verification</strong> — citations are not trusted because a model said they exist; they are verified against a known source set</li>
+    <li><strong>Epistemic transparency</strong> — the output tells you what the AI agreed on, what it disputed, and what it thinks it might have gotten wrong</li>
+  </ol>
+
+  <p>
+    The result is a system where the final ruling has been argued for, argued against, critiqued by the original advocate, cross-examined by opponents, evaluated by three specialist judges, synthesized by a Chief Judge who read all of it, programmatically fact-checked, and then challenged by a contrarian critic — all before the user sees it.
+  </p>
+
+  <div class="callout callout-green">
+    <strong>What the output is not</strong>
+    This is not legal advice. The output of the Council of LLMs is structured reasoning about a legal situation based on available information. It should be used to understand the legal landscape of a situation, identify the strongest arguments on each side, and prepare informed questions for actual legal counsel — not to substitute for it.
+  </div>
+
+  <a href="/" class="back-link">← Back to the application</a>
+
+  <div class="footnote">
+    Council of LLMs · Built with Express, Node.js, OpenRouter, and Tavily · 23 LLM calls per query across 5 AI providers
+  </div>
+
+</div>
+</body>
+</html>

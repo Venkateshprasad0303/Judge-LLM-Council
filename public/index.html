@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Council of LLMs</title>
+<style>
+  :root {
+    --bg: #09090f; --surface: #11121a; --border: #1e2030;
+    --text: #e2e8f0; --muted: #4b5680; --faint: #1a1d2e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+
+  header { padding: 20px 32px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 16px; }
+  .logo { font-size: 18px; font-weight: 900; letter-spacing: -0.02em; }
+  .logo span { color: #818cf8; }
+  .badge { font-size: 10px; font-weight: 700; background: #1e1b4b; color: #818cf8; padding: 3px 10px; border-radius: 10px; }
+  .or-badge { font-size: 10px; font-weight: 700; background: #1a0536; color: #d946ef; padding: 3px 10px; border-radius: 10px; border: 1px solid #7e22ce; }
+
+  main { flex: 1; display: grid; grid-template-columns: 400px 1fr; gap: 0; overflow: hidden; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+
+  /* ── Left panel ── */
+  .left-panel { border-right: 1px solid var(--border); display: flex; flex-direction: column; height: calc(100vh - 61px); }
+  .input-area { padding: 20px; border-bottom: 1px solid var(--border); }
+  .input-area label { font-size: 11px; font-weight: 700; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; display: block; margin-bottom: 8px; }
+  textarea { width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; color: var(--text); padding: 12px 14px; font-size: 13px; font-family: inherit; resize: vertical; min-height: 140px; outline: none; line-height: 1.6; }
+  textarea:focus { border-color: #3730a3; }
+  .submit-btn { margin-top: 10px; width: 100%; background: #1e1b4b; border: 1px solid #3730a3; color: #818cf8; font-size: 13px; font-weight: 700; padding: 10px; border-radius: 8px; cursor: pointer; transition: background 0.15s; }
+  .submit-btn:hover { background: #2e2b6b; }
+  .submit-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── Phase tracker ── */
+  .phase-tracker { flex: 1; overflow-y: auto; padding: 16px; }
+  .phase-tracker h3 { font-size: 10px; font-weight: 800; color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 12px; }
+  .phase-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border-radius: 8px; margin-bottom: 4px; background: var(--faint); border: 1px solid var(--border); font-size: 12px; transition: border-color 0.2s; }
+  .phase-item.running { border-color: #3730a3; }
+  .phase-item.done { border-color: #065f46; }
+  .phase-item.error { border-color: #7c2d12; }
+  .phase-num { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; flex-shrink: 0; background: #1e2030; color: var(--muted); }
+  .phase-item.running .phase-num { background: #1e1b4b; color: #818cf8; }
+  .phase-item.done .phase-num { background: #022c22; color: #34d399; }
+  .phase-name { font-weight: 700; color: #f1f5f9; }
+  .phase-detail { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  /* ── Cost tracker ── */
+  .cost-bar { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 12px; font-size: 11px; flex-wrap: wrap; }
+  .cost-item { color: var(--muted); }
+  .cost-item span { color: #4ade80; font-weight: 700; }
+
+  /* ── Right panel ── */
+  .right-panel { display: flex; flex-direction: column; height: calc(100vh - 61px); overflow-y: auto; padding: 24px 28px; }
+  .empty-state { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); text-align: center; gap: 12px; }
+  .empty-state .big { font-size: 40px; }
+  .empty-state p { font-size: 13px; line-height: 1.7; max-width: 360px; }
+
+  /* ── Result sections ── */
+  .result-section { margin-bottom: 20px; }
+  .result-section h3 { font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+
+  /* ── Consensus badge ── */
+  .consensus-badge { display: inline-block; font-size: 11px; font-weight: 800; padding: 4px 14px; border-radius: 20px; margin-bottom: 16px; }
+  .cb-STRONG_CONSENSUS { background: #022c22; color: #34d399; border: 1px solid #065f46; }
+  .cb-MODERATE_CONSENSUS { background: #052e16; color: #86efac; border: 1px solid #16a34a; }
+  .cb-MIXED_VIEWS { background: #1c1500; color: #fbbf24; border: 1px solid #b45309; }
+  .cb-SIGNIFICANT_DISAGREEMENT { background: #431407; color: #fb923c; border: 1px solid #7c2d12; }
+  .cb-FUNDAMENTAL_DISAGREEMENT { background: #450a0a; color: #f87171; border: 1px solid #991b1b; }
+
+  /* ── Ruling text ── */
+  .ruling-text { background: var(--surface); border: 1px solid #7e22ce; border-radius: 10px; padding: 16px 18px; font-size: 13px; line-height: 1.8; color: #f1f5f9; white-space: pre-wrap; }
+  .stream-cursor::after { content: '▊'; animation: blink 0.8s infinite; color: #818cf8; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  /* ── Findings ── */
+  .finding-item { padding: 8px 12px; border-radius: 8px; background: var(--faint); border-left: 3px solid var(--border); margin-bottom: 6px; font-size: 12px; line-height: 1.6; }
+  .finding-item.settled { border-left-color: #065f46; }
+  .finding-item.disputed { border-left-color: #7c2d12; }
+
+  /* ── Epistemic markers ── */
+  .em-badge { display: inline-block; font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 4px; margin-right: 6px; }
+  .em-settled { background: #022c22; color: #34d399; }
+  .em-disputed { background: #431407; color: #fb923c; }
+  .em-single_source { background: #082f49; color: #38bdf8; }
+
+  /* ── Citations ── */
+  .citation-item { padding: 8px 12px; border-radius: 8px; background: var(--faint); border: 1px solid var(--border); margin-bottom: 6px; font-size: 12px; }
+  .citation-id { font-size: 10px; font-weight: 700; color: #818cf8; margin-bottom: 3px; }
+
+  /* ── Model tag ── */
+  .model-tag { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 6px; }
+  .mt-sonnet { background: #1c0e00; color: #f59e0b; border: 1px solid #92400e; }
+  .mt-opus { background: #3b0764; color: #e879f9; border: 1px solid #7e22ce; }
+
+  /* ── DA Critique block ── */
+  .da-block { background: #180d06; border: 1px solid #7c2d12; border-radius: 10px; padding: 14px 16px; margin-top: 8px; }
+  .da-block h4 { font-size: 11px; font-weight: 800; color: #fb923c; margin-bottom: 8px; }
+  .da-item { font-size: 12px; color: #94a3b8; padding: 4px 0; border-bottom: 1px solid #1e0a03; }
+  .da-item:last-child { border-bottom: none; }
+
+  /* ── Citation integrity ── */
+  .ci-ok { background: #022c22; border: 1px solid #065f46; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #34d399; }
+  .ci-fail { background: #180d06; border: 1px solid #7c2d12; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #fb923c; }
+
+  /* ── Minority report ── */
+  .minority-block { background: #1c1500; border: 1px solid #b45309; border-radius: 10px; padding: 14px 16px; margin-top: 8px; }
+  .minority-block h4 { font-size: 11px; font-weight: 800; color: #fbbf24; margin-bottom: 8px; }
+
+  /* ── Upload / Export ── */
+  .upload-btn { margin-top: 6px; width: 100%; background: transparent; border: 1px solid var(--border); color: var(--muted); font-size: 12px; font-weight: 600; padding: 7px; border-radius: 8px; cursor: pointer; transition: border-color 0.15s, color 0.15s; text-align: center; }
+  .upload-btn:hover { border-color: #3730a3; color: #818cf8; }
+  .file-name { font-size: 10px; color: #4ade80; margin-top: 4px; display: none; }
+  .export-bar { display: none; padding: 10px 0 4px; gap: 8px; }
+  .export-bar.visible { display: flex; }
+  .export-btn { flex: 1; background: var(--faint); border: 1px solid var(--border); color: var(--muted); font-size: 11px; font-weight: 700; padding: 7px 10px; border-radius: 8px; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+  .export-btn:hover { border-color: #818cf8; color: #818cf8; }
+
+  /* ── Print (PDF export) ── */
+  @media print {
+    header, .left-panel, .export-bar, .empty-state { display: none !important; }
+    body { background: #fff; color: #000; }
+    main { display: block; }
+    .right-panel { height: auto; overflow: visible; padding: 0; }
+    .ruling-text, .finding-item, .citation-item, .da-block, .minority-block, .ci-ok, .ci-fail {
+      border: 1px solid #ccc; background: #f9f9f9; color: #000; border-radius: 0; }
+    .consensus-badge, .em-badge, .model-tag { border: 1px solid #999; background: #eee; color: #000; }
+    .da-block h4, .minority-block h4 { color: #000; }
+    .da-item, .result-section h3 { color: #333; border-color: #ccc; }
+  }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: var(--bg); } ::-webkit-scrollbar-thumb { background: #2a2f3e; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Council of <span>LLMs</span></div>
+  <span class="badge">7-Phase Legal AI</span>
+  <span class="or-badge">via OpenRouter</span>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:16px;">
+    <a href="/docs.html" style="font-size:11px;color:var(--muted);text-decoration:none;font-weight:600;" onmouseover="this.style.color='#818cf8'" onmouseout="this.style.color='var(--muted)'">Docs</a>
+    <span style="font-size:11px;color:var(--muted)" id="model-indicator"></span>
+  </div>
+</header>
+
+<main>
+  <!-- ── LEFT PANEL ── -->
+  <div class="left-panel">
+    <div class="input-area">
+      <label>Legal Query</label>
+      <textarea id="query" placeholder="Describe the legal situation, parties involved, jurisdiction, and key facts..."></textarea>
+      <button class="submit-btn" id="submit-btn" onclick="runCouncil()">Run Council →</button>
+      <input type="file" id="file-input" accept=".txt,.md,.text" style="display:none" onchange="handleFileUpload(event)"/>
+      <button class="upload-btn" onclick="document.getElementById('file-input').click()">↑ Upload case document (.txt / .md)</button>
+      <div class="file-name" id="file-name"></div>
+    </div>
+
+    <div class="phase-tracker">
+      <h3>Pipeline Progress</h3>
+      <div id="phases">
+        <div class="phase-item" id="phase-1">
+          <div class="phase-num">1</div>
+          <div><div class="phase-name">Intelligence Agent</div><div class="phase-detail" id="phase-detail-1">Sonnet 4.6 + thinking</div></div>
+        </div>
+        <div class="phase-item" id="phase-2">
+          <div class="phase-num">2</div>
+          <div><div class="phase-name">Research Fan-out</div><div class="phase-detail" id="phase-detail-2">Haiku ×3 + Tavily (dynamic)</div></div>
+        </div>
+        <div class="phase-item" id="phase-3">
+          <div class="phase-num">3</div>
+          <div><div class="phase-name">Advocate Chains</div><div class="phase-detail" id="phase-detail-3">o4-mini · Gemini 2.5 · Sonnet</div></div>
+        </div>
+        <div class="phase-item" id="phase-4">
+          <div class="phase-num">4</div>
+          <div><div class="phase-name">Cross-Examination</div><div class="phase-detail" id="phase-detail-4">+ Consensus Measurement</div></div>
+        </div>
+        <div class="phase-item" id="phase-5">
+          <div class="phase-num">5</div>
+          <div><div class="phase-name">Judge Panel</div><div class="phase-detail" id="phase-detail-5">Fact · Law · Precedent</div></div>
+        </div>
+        <div class="phase-item" id="phase-6">
+          <div class="phase-num">6</div>
+          <div><div class="phase-name">Chief Judge</div><div class="phase-detail" id="phase-detail-6">Sonnet 4.6 / Opus 4.6 hybrid</div></div>
+        </div>
+        <div class="phase-item" id="phase-7">
+          <div class="phase-num">7</div>
+          <div><div class="phase-name">Post-Ruling Checks</div><div class="phase-detail" id="phase-detail-7">DA Critique + Citation Integrity</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cost-bar">
+      <div class="cost-item">Model: <span id="cost-model">—</span></div>
+      <div class="cost-item">Searches: <span id="cost-searches">—</span></div>
+      <div class="cost-item">Complexity: <span id="cost-complexity">—</span></div>
+    </div>
+  </div>
+
+  <!-- ── RIGHT PANEL ── -->
+  <div class="right-panel" id="right-panel">
+    <div class="export-bar" id="export-bar">
+      <button class="export-btn" onclick="exportMarkdown()">↓ Download Markdown</button>
+      <button class="export-btn" onclick="exportPDF()">↓ Download PDF</button>
+    </div>
+    <div class="empty-state" id="empty-state">
+      <div class="big">⚖️</div>
+      <p>Enter a legal case description on the left.<br/>The council will analyze it through 7 adversarial phases.</p>
+      <div style="font-size:11px;color:#2a3050">All models via OpenRouter · One API key</div>
+    </div>
+    <div id="result" style="display:none"></div>
+  </div>
+</main>
+
+<script>
+const sessionId = `session_${Date.now()}`;
+let streamBuffer = '';
+let lastRulingData = null; // stored for export
+
+// ── File upload ──────────────────────────────────────────────────────────────
+function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    document.getElementById('query').value = e.target.result.trim();
+    const nameEl = document.getElementById('file-name');
+    nameEl.textContent = `✓ ${file.name} loaded`;
+    nameEl.style.display = 'block';
+  };
+  reader.readAsText(file);
+  // Reset so the same file can be re-selected
+  event.target.value = '';
+}
+
+// ── Markdown export ──────────────────────────────────────────────────────────
+function exportMarkdown() {
+  if (!lastRulingData) return;
+  const { intel, researchBundle, crossExam, judgePanel, ruling: r, checks } = lastRulingData;
+  const lines = [];
+  const ts = new Date().toISOString().slice(0,19).replace('T',' ');
+
+  lines.push(`# Council of LLMs — Legal Ruling`);
+  lines.push(`\n> Generated ${ts} · ${intel.caseType} · ${intel.complexityLevel} · Consensus: ${crossExam.consensusLevel?.replace(/_/g,' ')}`);
+  lines.push(`\n---\n`);
+
+  lines.push(`## Ruling\n\n${r.ruling}\n`);
+  lines.push(`## Rationale\n\n${r.rationale}\n`);
+
+  if (r.findingsOfFact?.length) {
+    lines.push(`## Findings of Fact\n`);
+    r.findingsOfFact.forEach(f => lines.push(`- **[${f.status}]** ${f.fact}`));
+    lines.push('');
+  }
+
+  if (r.conclusionsOfLaw?.length) {
+    lines.push(`## Conclusions of Law\n`);
+    r.conclusionsOfLaw.forEach(c => lines.push(`- **${c.conclusion}** — ${c.basis}`));
+    lines.push('');
+  }
+
+  if (r.epistemicMarkers?.length) {
+    lines.push(`## Epistemic Markers\n`);
+    r.epistemicMarkers.forEach(m => lines.push(`- \`[${m.status}]\` ${m.claim}`));
+    lines.push('');
+  }
+
+  if (r.citedAuthorities?.length) {
+    lines.push(`## Cited Authorities\n`);
+    r.citedAuthorities.forEach(a => lines.push(`- **${a.id}** — ${a.title}: ${a.proposition}`));
+    lines.push('');
+  }
+
+  if (crossExam.divergentClaims?.length) {
+    lines.push(`## Disputed Claims\n`);
+    crossExam.divergentClaims.forEach(c => lines.push(`- ${c}`));
+    lines.push('');
+  }
+
+  if (r.minorityReport) {
+    lines.push(`## Minority Report\n\n${r.minorityReport}\n`);
+  }
+
+  const da = checks?.devilsAdvocate;
+  if (da) {
+    lines.push(`## Devil's Advocate Critique\n`);
+    if (da.assumptions?.length) { lines.push(`### Unquestioned Assumptions\n`); da.assumptions.forEach(a => lines.push(`- ${a}`)); lines.push(''); }
+    if (da.missedArguments?.length) { lines.push(`### Missed Arguments\n`); da.missedArguments.forEach(a => lines.push(`- ${a}`)); lines.push(''); }
+    if (da.biases?.length) { lines.push(`### Framing Biases\n`); da.biases.forEach(a => lines.push(`- ${a}`)); lines.push(''); }
+  }
+
+  const ci = checks?.citationIntegrity;
+  lines.push(`## Citation Integrity\n\n${ci?.verified ? '✓ All citations verified' : `⚠ Unverified: ${ci?.unverifiedIds?.join(', ')}`}\n`);
+  lines.push(`---\n\n*Model: ${r.modelUsed} · ${researchBundle.sources?.length} sources · Council of LLMs*`);
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `council-ruling-${Date.now()}.md`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ── PDF export (print dialog) ────────────────────────────────────────────────
+function exportPDF() {
+  window.print();
+}
+
+function setPhase(n, state, detail = null) {
+  const el = document.getElementById(`phase-${n}`);
+  if (!el) return;
+  el.className = `phase-item ${state}`;
+  if (detail) document.getElementById(`phase-detail-${n}`).textContent = detail;
+}
+
+const PHASE_DEFAULTS = {
+  1: 'Sonnet 4.6 + thinking',
+  2: 'Haiku ×3 + Tavily (dynamic)',
+  3: 'o4-mini · Gemini 2.5 · Sonnet',
+  4: '+ Consensus Measurement',
+  5: 'Fact · Law · Precedent',
+  6: 'Sonnet 4.6 / Opus 4.6 hybrid',
+  7: 'DA Critique + Citation Integrity',
+};
+
+function resetPhases() {
+  for (let i = 1; i <= 7; i++) {
+    document.getElementById(`phase-${i}`).className = 'phase-item';
+    document.getElementById(`phase-detail-${i}`).textContent = PHASE_DEFAULTS[i];
+  }
+}
+
+function badge(cls, text) {
+  return `<span class="consensus-badge cb-${cls}">${text.replace(/_/g,' ')}</span>`;
+}
+
+function emBadge(status) {
+  return `<span class="em-badge em-${status}">${status.replace('_',' ')}</span>`;
+}
+
+function renderResult(data) {
+  const { intel, researchBundle, crossExam, judgePanel, ruling, checks } = data;
+  const r = ruling;
+  const escalated = r.escalated;
+
+  let html = '';
+
+  // Header row
+  html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
+    ${badge(crossExam.consensusLevel, crossExam.consensusLevel)}
+    <span class="model-tag ${escalated ? 'mt-opus' : 'mt-sonnet'}">${escalated ? 'Opus 4.6 (escalated)' : 'Sonnet 4.6'}</span>
+    <span style="font-size:11px;color:var(--muted);margin-left:auto">${intel.caseType} · ${intel.complexityLevel} · ${researchBundle.sources.length} sources</span>
+  </div>`;
+
+  // Ruling
+  html += `<div class="result-section"><h3>Ruling</h3><div class="ruling-text">${escHtml(r.ruling)}</div></div>`;
+
+  // Rationale
+  html += `<div class="result-section"><h3>Rationale</h3><div style="font-size:13px;color:#94a3b8;line-height:1.8;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px">${escHtml(r.rationale)}</div></div>`;
+
+  // Findings of fact
+  if (r.findingsOfFact?.length) {
+    html += `<div class="result-section"><h3>Findings of Fact</h3>`;
+    r.findingsOfFact.forEach(f => {
+      html += `<div class="finding-item ${f.status}">${emBadge(f.status)} ${escHtml(f.fact)}</div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Conclusions of law
+  if (r.conclusionsOfLaw?.length) {
+    html += `<div class="result-section"><h3>Conclusions of Law</h3>`;
+    r.conclusionsOfLaw.forEach(c => {
+      html += `<div class="finding-item"><strong style="color:#c084fc">${escHtml(c.conclusion)}</strong><br/><span style="color:var(--muted);font-size:11px">${escHtml(c.basis)}</span></div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Epistemic markers
+  if (r.epistemicMarkers?.length) {
+    html += `<div class="result-section"><h3>Epistemic Markers</h3>`;
+    r.epistemicMarkers.forEach(m => {
+      html += `<div style="padding:6px 0;font-size:12px;color:#94a3b8;border-bottom:1px solid var(--border)">${emBadge(m.status)} ${escHtml(m.claim)}</div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Cited authorities
+  if (r.citedAuthorities?.length) {
+    html += `<div class="result-section"><h3>Cited Authorities</h3>`;
+    r.citedAuthorities.forEach(a => {
+      html += `<div class="citation-item"><div class="citation-id">${escHtml(a.id)}</div><strong style="font-size:12px">${escHtml(a.title)}</strong><div style="font-size:11px;color:var(--muted);margin-top:3px">${escHtml(a.proposition)}</div></div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Minority report
+  if (r.minorityReport) {
+    html += `<div class="result-section"><div class="minority-block"><h4>⚠ Minority Report</h4><div style="font-size:12px;color:#94a3b8;line-height:1.7">${escHtml(r.minorityReport)}</div></div></div>`;
+  }
+
+  // Divergent claims
+  if (crossExam.divergentClaims?.length) {
+    html += `<div class="result-section"><h3>Disputed Claims (from Cross-Examination)</h3>`;
+    crossExam.divergentClaims.forEach(c => {
+      html += `<div style="padding:6px 12px;background:var(--faint);border-left:3px solid #7c2d12;border-radius:0 8px 8px 0;font-size:12px;color:#94a3b8;margin-bottom:4px">${escHtml(c)}</div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Phase 7: Devil's Advocate
+  const da = checks.devilsAdvocate;
+  if (da) {
+    html += `<div class="result-section"><div class="da-block"><h4>🔴 Devil's Advocate Critique</h4>`;
+    if (da.assumptions?.length) {
+      html += `<div style="font-size:10px;font-weight:700;color:#fb923c;margin:6px 0 4px">Unquestioned Assumptions</div>`;
+      da.assumptions.forEach(a => { html += `<div class="da-item">${escHtml(a)}</div>`; });
+    }
+    if (da.missedArguments?.length) {
+      html += `<div style="font-size:10px;font-weight:700;color:#fb923c;margin:6px 0 4px">Missed Arguments</div>`;
+      da.missedArguments.forEach(a => { html += `<div class="da-item">${escHtml(a)}</div>`; });
+    }
+    if (da.biases?.length) {
+      html += `<div style="font-size:10px;font-weight:700;color:#fb923c;margin:6px 0 4px">Framing Biases</div>`;
+      da.biases.forEach(a => { html += `<div class="da-item">${escHtml(a)}</div>`; });
+    }
+    html += `</div></div>`;
+  }
+
+  // Citation integrity
+  const ci = checks.citationIntegrity;
+  html += `<div class="result-section"><div class="${ci.verified ? 'ci-ok' : 'ci-fail'}">${ci.verified ? '✓ All citations verified against ResearchBundle' : `⚠ Unverified citations: ${ci.unverifiedIds.join(', ')}`}</div></div>`;
+
+  return html;
+}
+
+async function runCouncil() {
+  const query = document.getElementById('query').value.trim();
+  if (!query) return;
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Running...';
+
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('export-bar').classList.remove('visible');
+  lastRulingData = null;
+  const resultEl = document.getElementById('result');
+  resultEl.style.display = 'block';
+  resultEl.innerHTML = `<div class="ruling-text stream-cursor" id="stream-output">Initializing pipeline...</div>`;
+  streamBuffer = '';
+  resetPhases();
+
+  document.getElementById('cost-model').textContent = '—';
+  document.getElementById('cost-searches').textContent = '—';
+  document.getElementById('cost-complexity').textContent = '—';
+
+  try {
+    const res = await fetch('/api/council', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, sessionId }),
+    });
+
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = dec.decode(value);
+      const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
+
+      for (const line of lines) {
+        try {
+          const evt = JSON.parse(line.slice(6));
+          handleEvent(evt);
+        } catch { /* skip */ }
+      }
+    }
+  } catch (e) {
+    resultEl.innerHTML = `<div style="color:#f87171;padding:16px">Error: ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Run Council →';
+  }
+}
+
+function handleEvent(evt) {
+  const streamEl = document.getElementById('stream-output');
+
+  switch (evt.type) {
+    case 'phase_start':
+      setPhase(evt.phase, 'running');
+      if (streamEl && evt.phase < 6) {
+        streamEl.textContent = `Phase ${evt.phase}: ${evt.name}...`;
+      }
+      break;
+
+    case 'phase_complete': {
+      const d = evt.data;
+      if (evt.phase === 1) {
+        document.getElementById('cost-complexity').textContent = d.complexity;
+        document.getElementById('cost-searches').textContent = d.tavilySearches;
+        setPhase(1, 'done', `${d.caseType} · ${d.issues?.length} issues · ${d.complexity}`);
+      } else if (evt.phase === 2) {
+        setPhase(2, 'done', `${d.sources} sources · ${d.tavilySources} tavily`);
+      } else if (evt.phase === 3) {
+        setPhase(3, 'done', `P:${d.plaintiff} D:${d.defense} N:${d.neutral} key points`);
+      } else if (evt.phase === 4) {
+        setPhase(4, 'done', `${d.consensusLevel?.replace(/_/g,' ')} · ${d.divergentClaims} disputed`);
+      } else if (evt.phase === 5) {
+        setPhase(5, 'done', `Precedent favors ${d.precedentFavors}${d.minority ? ' · ⚠ minority' : ''}`);
+      } else if (evt.phase === 6) {
+        document.getElementById('cost-model').textContent = d.escalated ? 'Opus 4.6' : 'Sonnet 4.6';
+        setPhase(6, 'done', d.escalated ? 'Opus 4.6 (escalated)' : 'Sonnet 4.6');
+      } else if (evt.phase === 7) {
+        const ciLabel = d.citationVerified
+          ? (d.rePrompted ? '✓ citations fixed (re-prompted)' : '✓ citations verified')
+          : `⚠ ${d.unverified?.length} unverified`;
+        setPhase(7, 'done', ciLabel);
+      } else {
+        setPhase(evt.phase, 'done');
+      }
+      break;
+    }
+
+    case 'stream_token':
+      streamBuffer += evt.content;
+      if (streamEl) streamEl.textContent = streamBuffer;
+      break;
+
+    case 'done':
+      lastRulingData = evt;
+      document.getElementById('result').innerHTML = renderResult(evt);
+      document.getElementById('export-bar').classList.add('visible');
+      break;
+
+    case 'error':
+      document.getElementById('result').innerHTML = `<div style="color:#f87171;padding:16px;background:var(--surface);border-radius:10px;border:1px solid #7c2d12">Error: ${escHtml(evt.message)}</div>`;
+      for (let i = 1; i <= 7; i++) setPhase(i, '');
+      break;
+  }
+}
+
+function escHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.getElementById('query').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.metaKey) runCouncil();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Council of LLMs — Architecture</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #f5f5f5;
+    font-family: 'Segoe UI', Arial, sans-serif;
+    color: #1a1a1a;
+    padding: 40px;
+  }
+
+  .page {
+    max-width: 900px;
+    margin: 0 auto;
+    background: #fff;
+    border: 1px solid #ddd;
+    padding: 48px 52px 56px;
+  }
+
+  /* Header */
+  .doc-title {
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #111;
+    margin-bottom: 4px;
+  }
+  .doc-sub {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 36px;
+  }
+
+  /* Section labels */
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #999;
+    margin-bottom: 14px;
+  }
+
+  /* ── PIPELINE ── */
+  .pipeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  /* Phase row */
+  .phase-row {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    position: relative;
+  }
+
+  /* Connector arrow between phases */
+  .connector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    position: relative;
+  }
+  .connector::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: #bbb;
+    transform: translateX(-50%);
+  }
+  .connector::after {
+    content: '▼';
+    font-size: 9px;
+    color: #999;
+    background: #f5f5f5;
+    padding: 0 4px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Phase box */
+  .phase {
+    flex: 1;
+    border: 1.5px solid #ccc;
+    background: #fff;
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .phase-num-col {
+    width: 36px;
+    background: #f0f0f0;
+    border-right: 1.5px solid #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 13px;
+    font-weight: 700;
+    color: #555;
+  }
+
+  .phase-body {
+    flex: 1;
+    padding: 12px 14px;
+  }
+
+  .phase-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #111;
+    margin-bottom: 4px;
+  }
+
+  .phase-desc {
+    font-size: 11px;
+    color: #555;
+    line-height: 1.5;
+    margin-bottom: 6px;
+  }
+
+  .phase-models {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .model-tag {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    color: #444;
+    background: #fafafa;
+    white-space: nowrap;
+  }
+
+  .phase-output {
+    margin-top: 8px;
+    padding-top: 7px;
+    border-top: 1px dashed #ddd;
+    font-size: 10px;
+    color: #888;
+  }
+  .phase-output span {
+    font-family: 'Courier New', monospace;
+    color: #555;
+    font-size: 10px;
+    background: #f5f5f5;
+    padding: 1px 5px;
+    border: 1px solid #e0e0e0;
+    border-radius: 2px;
+  }
+
+  /* Fan-out phases (Phase 3, 5) */
+  .fan-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .fan-phase {
+    flex: 1;
+    border: 1.5px solid #ccc;
+    background: #fff;
+  }
+
+  .fan-header {
+    background: #f0f0f0;
+    border-bottom: 1.5px solid #ccc;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #333;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .fan-header .role-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #999;
+    flex-shrink: 0;
+  }
+
+  .fan-body {
+    padding: 8px 10px;
+  }
+
+  .fan-body .model-tag {
+    margin-bottom: 3px;
+    display: inline-block;
+  }
+
+  .fan-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #999;
+    margin-bottom: 8px;
+  }
+
+  /* Phase 7 side-by-side */
+  .post-row {
+    display: flex;
+    gap: 8px;
+  }
+  .post-phase {
+    flex: 1;
+    border: 1.5px solid #ccc;
+    background: #fff;
+    padding: 10px 12px;
+  }
+  .post-phase .phase-name { font-size: 12px; }
+
+  /* Output bus */
+  .output-bus {
+    border: 1.5px solid #bbb;
+    background: #fafafa;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .output-bus .label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #333;
+    margin-right: 4px;
+  }
+
+  .output-chip {
+    font-size: 10px;
+    padding: 2px 8px;
+    border: 1px solid #ccc;
+    background: #fff;
+    border-radius: 2px;
+    color: #444;
+  }
+
+  /* Legend */
+  .legend {
+    margin-top: 32px;
+    padding-top: 20px;
+    border-top: 1px solid #ddd;
+  }
+
+  .legend-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #999;
+    margin-bottom: 12px;
+  }
+
+  .legend-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 11px;
+    color: #555;
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    border: 1px solid #bbb;
+    background: #fafafa;
+    flex-shrink: 0;
+  }
+
+  /* Summary row */
+  .summary-row {
+    margin-top: 28px;
+    display: flex;
+    gap: 0;
+    border: 1px solid #ddd;
+  }
+
+  .summary-cell {
+    flex: 1;
+    padding: 12px 14px;
+    border-right: 1px solid #ddd;
+    text-align: center;
+  }
+  .summary-cell:last-child { border-right: none; }
+
+  .summary-cell .num {
+    font-size: 22px;
+    font-weight: 700;
+    color: #111;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .summary-cell .lbl {
+    font-size: 10px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="doc-title">Council of LLMs — System Architecture</div>
+  <div class="doc-sub">7-Phase adversarial multi-agent legal reasoning pipeline</div>
+
+  <div class="section-label">Pipeline</div>
+
+  <div class="pipeline">
+
+    <!-- ── Phase 1 ── -->
+    <div class="phase-row">
+      <div class="phase">
+        <div class="phase-num-col">1</div>
+        <div class="phase-body">
+          <div class="phase-name">Intelligence Agent</div>
+          <div class="phase-desc">Classifies the query, identifies legal issues, parties, jurisdiction, and decides how many web searches to run. Accepts conversation history for follow-up queries.</div>
+          <div class="phase-models">
+            <span class="model-tag">Sonnet 4.6</span>
+            <span class="model-tag">Extended thinking (3k–12k)</span>
+          </div>
+          <div class="phase-output">Output → <span>IntelBundle</span>: caseType · legalIssues[] · burdenOfProof · complexityLevel · tavilyConfig</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"></div>
+
+    <!-- ── Phase 2 ── -->
+    <div class="phase-row">
+      <div class="phase">
+        <div class="phase-num-col">2</div>
+        <div class="phase-body">
+          <div class="phase-name">Research Fan-out</div>
+          <div class="phase-desc">Three researchers run in parallel against the RAG knowledge base (51 US law docs) and Tavily web search. A synthesizer merges all findings. Source IDs are normalized to src-N for citation tracing.</div>
+          <div class="phase-models">
+            <span class="model-tag">Haiku 4.5 ×3 (parallel)</span>
+            <span class="model-tag">Sonnet 4.6 (synthesis)</span>
+            <span class="model-tag">Tavily 0–9 searches</span>
+            <span class="model-tag">RAG (51 docs)</span>
+          </div>
+          <div class="phase-output">Output → <span>ResearchBundle</span>: sources[src-1…N] · keyStatutes[] · precedents[] · plaintiff/defenseStrengths[]</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"></div>
+
+    <!-- ── Phase 3 ── -->
+    <div class="phase-row" style="flex-direction:column;">
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:1.5px solid #ccc;border-bottom:none;background:#f7f7f7;">
+        <div style="font-size:12px;font-weight:700;color:#111;">3 &nbsp;·&nbsp; Advocate Chains</div>
+        <div style="font-size:11px;color:#777;margin-left:4px;">3 parallel · each: Build → Critique → Refine</div>
+      </div>
+      <div class="fan-row" style="border:1.5px solid #ccc;border-top:none;padding:10px;gap:8px;background:#fff;">
+        <div class="fan-phase">
+          <div class="fan-header"><div class="role-dot"></div>Plaintiff</div>
+          <div class="fan-body">
+            <div class="model-tag">o4-mini (build)</div><br/>
+            <div class="model-tag" style="margin-top:3px;">Haiku (critique)</div><br/>
+            <div class="model-tag" style="margin-top:3px;">o4-mini (refine)</div>
+          </div>
+        </div>
+        <div class="fan-phase">
+          <div class="fan-header"><div class="role-dot"></div>Defense</div>
+          <div class="fan-body">
+            <div class="model-tag">Gemini 2.5 Pro (build)</div><br/>
+            <div class="model-tag" style="margin-top:3px;">Haiku (critique)</div><br/>
+            <div class="model-tag" style="margin-top:3px;">Gemini 2.5 Pro (refine)</div>
+          </div>
+        </div>
+        <div class="fan-phase">
+          <div class="fan-header"><div class="role-dot"></div>Neutral</div>
+          <div class="fan-body">
+            <div class="model-tag">Sonnet 4.6 (build)</div><br/>
+            <div class="model-tag" style="margin-top:3px;">Haiku (critique)</div><br/>
+            <div class="model-tag" style="margin-top:3px;">Sonnet 4.6 (refine)</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:6px 10px;border:1.5px solid #ccc;border-top:1px dashed #ddd;font-size:10px;color:#888;background:#fff;">
+        Output → <span style="font-family:monospace;background:#f5f5f5;padding:1px 5px;border:1px solid #e0e0e0;">AdvocateBundle</span>: {plaintiff · defense · neutral} × {argument · keyPoints[] · citations[]}
+      </div>
+    </div>
+
+    <div class="connector"></div>
+
+    <!-- ── Phase 4 ── -->
+    <div class="phase-row">
+      <div class="phase">
+        <div class="phase-num-col">4</div>
+        <div class="phase-body">
+          <div class="phase-name">Cross-Examination + Consensus Measurement</div>
+          <div class="phase-desc">Each advocate attacks the other two. Then a consensus step reads all positions and rebuttals to measure how much advocates agreed and which specific claims were contested.</div>
+          <div class="phase-models">
+            <span class="model-tag">Haiku 4.5 ×3 (rebuttals)</span>
+            <span class="model-tag">Sonnet 4.6 (consensus)</span>
+          </div>
+          <div class="phase-output">Output → <span>CrossExam</span>: rebuttals[] · consensusLevel · divergentClaims[] · agreedFacts[]</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"></div>
+
+    <!-- ── Phase 5 ── -->
+    <div class="phase-row" style="flex-direction:column;">
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:1.5px solid #ccc;border-bottom:none;background:#f7f7f7;">
+        <div style="font-size:12px;font-weight:700;color:#111;">5 &nbsp;·&nbsp; Judge Panel</div>
+        <div style="font-size:11px;color:#777;margin-left:4px;">3 parallel specialists · each given one narrow question</div>
+      </div>
+      <div class="fan-row" style="border:1.5px solid #ccc;border-top:none;padding:10px;gap:8px;background:#fff;">
+        <div class="fan-phase">
+          <div class="fan-header"><div class="role-dot"></div>Fact Judge</div>
+          <div class="fan-body">
+            <div class="model-tag">Sonnet 4.6</div><br/>
+            <div class="model-tag" style="margin-top:3px;">+ Extended thinking</div>
+            <div style="font-size:10px;color:#888;margin-top:6px;">Disputed vs. undisputed facts only</div>
+          </div>
+        </div>
+        <div class="fan-phase">
+          <div class="fan-header"><div class="role-dot"></div>Law Judge</div>
+          <div class="fan-body">
+            <div class="model-tag">o4-mini</div>
+            <div style="font-size:10px;color:#888;margin-top:6px;">Applicable statutes, standards, legal tests</div>
+          </div>
+        </div>
+        <div class="fan-phase">
+          <div class="fan-header"><div class="role-dot"></div>Precedent Judge</div>
+          <div class="fan-body">
+            <div class="model-tag">Gemini 2.5 Pro</div>
+            <div style="font-size:10px;color:#888;margin-top:6px;">Analogous cases and which side they favor</div>
+          </div>
+        </div>
+      </div>
+      <div style="padding:6px 10px;border:1.5px solid #ccc;border-top:1px dashed #ddd;font-size:10px;color:#888;background:#fff;">
+        Output → <span style="font-family:monospace;background:#f5f5f5;padding:1px 5px;border:1px solid #e0e0e0;">JudgePanel</span>: factJudge · lawJudge · precedentJudge · minorityFinding flag
+      </div>
+    </div>
+
+    <div class="connector"></div>
+
+    <!-- ── Phase 6 ── -->
+    <div class="phase-row">
+      <div class="phase">
+        <div class="phase-num-col">6</div>
+        <div class="phase-body">
+          <div class="phase-name">Chief Judge &nbsp;<span style="font-size:10px;font-weight:400;color:#888;">— reads all prior phases</span></div>
+          <div class="phase-desc">Synthesizes everything into a formal ruling. Streams output token by token. Escalates to Opus when the case is complex and consensus is low (~20% of queries).</div>
+          <div class="phase-models">
+            <span class="model-tag">Sonnet 4.6 + thinking (default, ~80%)</span>
+            <span class="model-tag">Opus 4.6 + 16k thinking (complex + high disagreement, ~20%)</span>
+          </div>
+          <div class="phase-output">Output → <span>Ruling</span>: findingsOfFact[] · conclusionsOfLaw[] · ruling · citedAuthorities[src-N] · epistemicMarkers[] · minorityReport</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"></div>
+
+    <!-- ── Phase 7 ── -->
+    <div class="phase-row" style="flex-direction:column;">
+      <div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border:1.5px solid #ccc;border-bottom:none;background:#f7f7f7;">
+        <div style="font-size:12px;font-weight:700;color:#111;">7 &nbsp;·&nbsp; Post-Ruling Checks</div>
+        <div style="font-size:11px;color:#777;margin-left:4px;">2 parallel · runs after Chief Judge</div>
+      </div>
+      <div class="post-row" style="border:1.5px solid #ccc;border-top:none;padding:10px;gap:8px;background:#fff;">
+        <div class="post-phase">
+          <div class="phase-name">7a &nbsp; Devil's Advocate Critique</div>
+          <div class="phase-desc" style="font-size:11px;margin-top:4px;">Haiku reads the ruling with a contrarian prompt. Surfaces assumptions, missed arguments, biases, and overconfident claims. Advisory only — does not change the ruling.</div>
+          <div class="phase-models" style="margin-top:6px;"><span class="model-tag">Haiku 4.5</span></div>
+        </div>
+        <div class="post-phase">
+          <div class="phase-name">7b &nbsp; Citation Integrity Check</div>
+          <div class="phase-desc" style="font-size:11px;margin-top:4px;">Every citedAuthority is verified against the ResearchBundle src-N IDs. Programmatic check. If unverified citations found, Haiku is re-prompted once to replace them.</div>
+          <div class="phase-models" style="margin-top:6px;"><span class="model-tag">Programmatic</span><span class="model-tag">Haiku re-prompt (if needed)</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="connector"></div>
+
+    <!-- ── Output ── -->
+    <div class="output-bus">
+      <span class="label">Output to UI</span>
+      <span class="output-chip">Consensus badge</span>
+      <span class="output-chip">Findings of fact [settled/disputed]</span>
+      <span class="output-chip">Ruling (streamed)</span>
+      <span class="output-chip">Cited authorities</span>
+      <span class="output-chip">Epistemic markers</span>
+      <span class="output-chip">Minority report</span>
+      <span class="output-chip">DA critique</span>
+      <span class="output-chip">Citation status</span>
+      <span class="output-chip">Export (MD / PDF)</span>
+    </div>
+
+  </div>
+
+  <!-- ── Summary ── -->
+  <div class="summary-row">
+    <div class="summary-cell">
+      <div class="num">23</div>
+      <div class="lbl">LLM Calls</div>
+    </div>
+    <div class="summary-cell">
+      <div class="num">5</div>
+      <div class="lbl">AI Providers</div>
+    </div>
+    <div class="summary-cell">
+      <div class="num">0–9</div>
+      <div class="lbl">Web Searches</div>
+    </div>
+    <div class="summary-cell">
+      <div class="num">51</div>
+      <div class="lbl">RAG Documents</div>
+    </div>
+    <div class="summary-cell">
+      <div class="num">~$0.73</div>
+      <div class="lbl">Avg Cost / Query</div>
+    </div>
+  </div>
+
+  <!-- ── Legend ── -->
+  <div class="legend">
+    <div class="legend-title">Models</div>
+    <div class="legend-grid">
+      <div class="legend-item"><div class="legend-dot"></div>Sonnet 4.6 — Intel Agent, Neutral Advocate, Synthesis, Consensus, Fact Judge, Chief Judge (default)</div>
+      <div class="legend-item"><div class="legend-dot"></div>Haiku 4.5 — Research ×3, all Critique steps, Rebuttals ×3, DA Critique, Citation re-prompt</div>
+      <div class="legend-item"><div class="legend-dot"></div>Opus 4.6 — Chief Judge (complex + high disagreement only, ~20%)</div>
+      <div class="legend-item"><div class="legend-dot"></div>o4-mini (OpenAI) — Plaintiff Advocate, Law Judge</div>
+      <div class="legend-item"><div class="legend-dot"></div>Gemini 2.5 Pro (Google) — Defense Advocate, Precedent Judge</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
