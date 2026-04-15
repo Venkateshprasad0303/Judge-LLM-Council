@@ -115,18 +115,32 @@
   .export-btn { flex: 1; background: var(--faint); border: 1px solid var(--border); color: var(--muted); font-size: 11px; font-weight: 700; padding: 7px 10px; border-radius: 8px; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
   .export-btn:hover { border-color: #818cf8; color: #818cf8; }
 
-  /* ── Print (PDF export) ── */
-  @media print {
-    header, .left-panel, .export-bar, .empty-state { display: none !important; }
-    body { background: #fff; color: #000; }
-    main { display: block; }
-    .right-panel { height: auto; overflow: visible; padding: 0; }
-    .ruling-text, .finding-item, .citation-item, .da-block, .minority-block, .ci-ok, .ci-fail {
-      border: 1px solid #ccc; background: #f9f9f9; color: #000; border-radius: 0; }
-    .consensus-badge, .em-badge, .model-tag { border: 1px solid #999; background: #eee; color: #000; }
-    .da-block h4, .minority-block h4 { color: #000; }
-    .da-item, .result-section h3 { color: #333; border-color: #ccc; }
-  }
+  /* ── Source type badges ── */
+  .stype { display: inline-block; font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 4px; margin-left: 6px; vertical-align: middle; }
+  .stype-caselaw  { background: #0c1a3a; color: #60a5fa; border: 1px solid #1e40af; }
+  .stype-statute  { background: #0a1f0a; color: #4ade80; border: 1px solid #166534; }
+  .stype-web      { background: #1a1030; color: #c084fc; border: 1px solid #6b21a8; }
+  .stype-rag      { background: #161310; color: #f59e0b; border: 1px solid #92400e; }
+
+  /* ── Citation cards (improved) ── */
+  .citation-item { padding: 10px 14px; border-radius: 8px; background: var(--faint); border: 1px solid var(--border); margin-bottom: 8px; }
+  .citation-item:hover { border-color: #3730a3; }
+  .citation-header { display: flex; align-items: center; margin-bottom: 4px; }
+  .citation-id { font-size: 10px; font-weight: 700; color: #818cf8; }
+  .citation-title { font-size: 12px; font-weight: 600; color: #f1f5f9; margin-bottom: 3px; }
+  .citation-title a { color: #93c5fd; text-decoration: none; }
+  .citation-title a:hover { text-decoration: underline; color: #bfdbfe; }
+  .citation-prop { font-size: 11px; color: #64748b; line-height: 1.6; }
+
+  /* ── Research sources grid ── */
+  .sources-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+  .source-card { background: var(--faint); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; font-size: 11px; }
+  .source-card:hover { border-color: #3730a3; }
+  .source-card-id { font-size: 9px; font-weight: 700; color: var(--muted); margin-bottom: 3px; }
+  .source-card-title { font-weight: 600; color: #cbd5e1; line-height: 1.4; margin-bottom: 4px; }
+  .source-card-title a { color: #93c5fd; text-decoration: none; }
+  .source-card-title a:hover { text-decoration: underline; }
+  .source-card-snippet { color: #475569; font-size: 10px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
   /* ── Scrollbar ── */
   ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: var(--bg); } ::-webkit-scrollbar-thumb { background: #2a2f3e; border-radius: 3px; }
@@ -266,8 +280,23 @@ function exportMarkdown() {
   }
 
   if (r.citedAuthorities?.length) {
+    const srcMap = {};
+    (researchBundle.sources || []).forEach(s => { srcMap[s.id] = s; });
     lines.push(`## Cited Authorities\n`);
-    r.citedAuthorities.forEach(a => lines.push(`- **${a.id}** — ${a.title}: ${a.proposition}`));
+    r.citedAuthorities.forEach(a => {
+      const url = srcMap[a.id]?.url;
+      const titleMd = url ? `[${a.title}](${url})` : a.title;
+      lines.push(`- **${a.id}** — ${titleMd}: ${a.proposition}`);
+    });
+    lines.push('');
+  }
+
+  if (researchBundle.sources?.length) {
+    lines.push(`## Research Sources\n`);
+    researchBundle.sources.forEach(s => {
+      const entry = s.url ? `[${s.title}](${s.url})` : s.title;
+      lines.push(`- **${s.id}** — ${entry}`);
+    });
     lines.push('');
   }
 
@@ -301,9 +330,141 @@ function exportMarkdown() {
   URL.revokeObjectURL(a.href);
 }
 
-// ── PDF export (print dialog) ────────────────────────────────────────────────
+// ── PDF export — opens a clean print window styled as a legal document ───────
+function buildPrintHTML() {
+  if (!lastRulingData) return '';
+  const { intel, researchBundle, crossExam, judgePanel, ruling: r, checks } = lastRulingData;
+  const ts = new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' });
+  const sourceMap = {};
+  (researchBundle.sources || []).forEach(s => { sourceMap[s.id] = s; });
+
+  function esc(s) { return s ? String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;') : ''; }
+
+  function citationBlock(a) {
+    const src = sourceMap[a.id];
+    const url = src?.url || null;
+    const titleText = a.title || src?.title || a.id;
+    const titleHtml = url ? `<a href="${esc(url)}">${esc(titleText)}</a>` : esc(titleText);
+    return `<div class="citation"><span class="cid">${esc(a.id)}</span> <strong>${titleHtml}</strong><br/><span class="prop">${esc(a.proposition)}</span></div>`;
+  }
+
+  let body = '';
+  body += `<div class="doc-header">
+    <div class="doc-title">COUNCIL OF LLMs — LEGAL RULING</div>
+    <div class="doc-meta">${esc(intel.caseType.toUpperCase())} · ${esc(intel.complexityLevel.toUpperCase())} COMPLEXITY · ${esc(crossExam.consensusLevel?.replace(/_/g,' '))} · Generated ${esc(ts)}</div>
+    <div class="doc-parties">
+      <strong>Plaintiff:</strong> ${esc(intel.parties?.plaintiff || 'N/A')} &nbsp;|&nbsp;
+      <strong>Defendant:</strong> ${esc(intel.parties?.defendant || 'N/A')} &nbsp;|&nbsp;
+      <strong>Jurisdiction:</strong> ${esc(intel.jurisdiction || 'Federal')}
+    </div>
+  </div>`;
+
+  body += `<h2>RULING</h2><p class="ruling-box">${esc(r.ruling)}</p>`;
+  body += `<h2>RATIONALE</h2><p class="rationale">${esc(r.rationale)}</p>`;
+
+  if (r.findingsOfFact?.length) {
+    body += `<h2>FINDINGS OF FACT</h2><table class="findings-table"><thead><tr><th>Status</th><th>Finding</th><th>Sources</th></tr></thead><tbody>`;
+    r.findingsOfFact.forEach(f => {
+      body += `<tr><td class="status-cell ${f.status}">${esc(f.status)}</td><td>${esc(f.fact)}</td><td>${(f.sources||[]).join(', ')}</td></tr>`;
+    });
+    body += `</tbody></table>`;
+  }
+
+  if (r.conclusionsOfLaw?.length) {
+    body += `<h2>CONCLUSIONS OF LAW</h2>`;
+    r.conclusionsOfLaw.forEach(c => {
+      body += `<div class="law-item"><strong>${esc(c.conclusion)}</strong><br/><span class="basis">${esc(c.basis)}</span></div>`;
+    });
+  }
+
+  if (r.citedAuthorities?.length) {
+    body += `<h2>CITED AUTHORITIES</h2>`;
+    r.citedAuthorities.forEach(a => { body += citationBlock(a); });
+  }
+
+  if (r.epistemicMarkers?.length) {
+    body += `<h2>EPISTEMIC MARKERS</h2><table class="findings-table"><thead><tr><th>Status</th><th>Claim</th></tr></thead><tbody>`;
+    r.epistemicMarkers.forEach(m => {
+      body += `<tr><td class="status-cell ${m.status}">${esc(m.status)}</td><td>${esc(m.claim)}</td></tr>`;
+    });
+    body += `</tbody></table>`;
+  }
+
+  if (r.minorityReport) {
+    body += `<h2>MINORITY REPORT</h2><div class="minority-box">${esc(r.minorityReport)}</div>`;
+  }
+
+  if (crossExam.divergentClaims?.length) {
+    body += `<h2>DISPUTED CLAIMS</h2><ul>`;
+    crossExam.divergentClaims.forEach(c => { body += `<li>${esc(c)}</li>`; });
+    body += `</ul>`;
+  }
+
+  const da = checks?.devilsAdvocate;
+  if (da) {
+    body += `<h2>DEVIL'S ADVOCATE CRITIQUE</h2>`;
+    if (da.assumptions?.length) { body += `<h3>Unquestioned Assumptions</h3><ul>`; da.assumptions.forEach(a => { body += `<li>${esc(a)}</li>`; }); body += `</ul>`; }
+    if (da.missedArguments?.length) { body += `<h3>Missed Arguments</h3><ul>`; da.missedArguments.forEach(a => { body += `<li>${esc(a)}</li>`; }); body += `</ul>`; }
+    if (da.biases?.length) { body += `<h3>Framing Biases</h3><ul>`; da.biases.forEach(a => { body += `<li>${esc(a)}</li>`; }); body += `</ul>`; }
+  }
+
+  if (researchBundle.sources?.length) {
+    body += `<h2>RESEARCH SOURCES</h2><table class="findings-table"><thead><tr><th>ID</th><th>Title</th><th>Type</th></tr></thead><tbody>`;
+    researchBundle.sources.forEach(s => {
+      const isCase = s.url?.includes('courtlistener.com');
+      const isStat = s.url?.includes('govinfo.gov');
+      const type = s.url ? (isCase ? 'Case Law' : isStat ? 'Statute' : 'Web') : 'Knowledge Base';
+      const titleHtml = s.url ? `<a href="${esc(s.url)}">${esc(s.title)}</a>` : esc(s.title);
+      body += `<tr><td>${esc(s.id)}</td><td>${titleHtml}</td><td>${type}</td></tr>`;
+    });
+    body += `</tbody></table>`;
+  }
+
+  const ci = checks?.citationIntegrity;
+  body += `<div class="footer">Citation Integrity: ${ci?.verified ? '✓ All citations verified' : `⚠ Unverified: ${ci?.unverifiedIds?.join(', ')}`} &nbsp;·&nbsp; Model: ${esc(r.modelUsed || (r.escalated ? 'Opus 4.6' : 'Sonnet 4.6'))} &nbsp;·&nbsp; Council of LLMs</div>`;
+
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/>
+<title>Council of LLMs — Legal Ruling</title>
+<style>
+  @page { margin: 2cm 2.5cm; }
+  body { font-family: Georgia, 'Times New Roman', serif; font-size: 11pt; color: #1a1a1a; line-height: 1.7; max-width: 900px; margin: 0 auto; }
+  h2 { font-size: 10pt; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; border-bottom: 1.5px solid #1a1a1a; margin: 22px 0 10px; padding-bottom: 4px; color: #1a1a1a; }
+  h3 { font-size: 10pt; font-weight: 700; margin: 12px 0 6px; color: #333; }
+  a { color: #1a4a8a; }
+  .doc-header { border-bottom: 2px solid #1a1a1a; padding-bottom: 16px; margin-bottom: 24px; }
+  .doc-title { font-size: 16pt; font-weight: 700; letter-spacing: 0.04em; text-align: center; margin-bottom: 6px; }
+  .doc-meta { font-size: 9pt; color: #555; text-align: center; letter-spacing: 0.04em; }
+  .doc-parties { font-size: 10pt; text-align: center; margin-top: 10px; }
+  .ruling-box { background: #f7f7f7; border-left: 4px solid #1a1a1a; padding: 12px 16px; font-size: 11.5pt; font-weight: 500; margin: 8px 0; }
+  .rationale { color: #333; margin: 8px 0; }
+  .findings-table { width: 100%; border-collapse: collapse; font-size: 10pt; margin: 8px 0; }
+  .findings-table th { background: #1a1a1a; color: #fff; padding: 6px 10px; text-align: left; font-size: 9pt; letter-spacing: 0.05em; }
+  .findings-table td { padding: 6px 10px; border-bottom: 1px solid #ddd; vertical-align: top; }
+  .findings-table tr:nth-child(even) td { background: #f9f9f9; }
+  .status-cell { font-size: 9pt; font-weight: 700; text-transform: uppercase; white-space: nowrap; }
+  .status-cell.settled { color: #166534; }
+  .status-cell.disputed { color: #7c1d1d; }
+  .status-cell.single_source { color: #1e40af; }
+  .law-item { background: #f7f7f7; border-left: 3px solid #888; padding: 8px 12px; margin-bottom: 6px; font-size: 10.5pt; }
+  .basis { font-size: 9.5pt; color: #555; }
+  .citation { background: #f7f7f7; border: 1px solid #ddd; padding: 8px 12px; margin-bottom: 6px; border-radius: 3px; font-size: 10pt; }
+  .cid { font-size: 8pt; font-weight: 700; color: #555; background: #e8e8e8; padding: 1px 5px; border-radius: 2px; }
+  .prop { font-size: 9.5pt; color: #555; }
+  .minority-box { background: #fffbeb; border-left: 4px solid #b45309; padding: 10px 14px; font-size: 10.5pt; color: #7c4700; }
+  ul { margin: 4px 0 10px 20px; }
+  li { margin-bottom: 4px; font-size: 10.5pt; }
+  .footer { margin-top: 32px; padding-top: 10px; border-top: 1px solid #ccc; font-size: 9pt; color: #888; text-align: center; }
+</style></head><body>${body}</body></html>`;
+}
+
 function exportPDF() {
-  window.print();
+  if (!lastRulingData) return;
+  const html = buildPrintHTML();
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 600);
 }
 
 function setPhase(n, state, detail = null) {
@@ -338,10 +499,21 @@ function emBadge(status) {
   return `<span class="em-badge em-${status}">${status.replace('_',' ')}</span>`;
 }
 
+function sourceTypeBadge(url) {
+  if (!url) return `<span class="stype stype-rag">Knowledge Base</span>`;
+  if (url.includes('courtlistener.com')) return `<span class="stype stype-caselaw">Case Law</span>`;
+  if (url.includes('govinfo.gov') || url.includes('uscode')) return `<span class="stype stype-statute">Statute</span>`;
+  return `<span class="stype stype-web">Web</span>`;
+}
+
 function renderResult(data) {
   const { intel, researchBundle, crossExam, judgePanel, ruling, checks } = data;
   const r = ruling;
   const escalated = r.escalated;
+
+  // Build a lookup map: src-N → { url, title, content }
+  const sourceMap = {};
+  (researchBundle.sources || []).forEach(s => { sourceMap[s.id] = s; });
 
   let html = '';
 
@@ -349,7 +521,7 @@ function renderResult(data) {
   html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap">
     ${badge(crossExam.consensusLevel, crossExam.consensusLevel)}
     <span class="model-tag ${escalated ? 'mt-opus' : 'mt-sonnet'}">${escalated ? 'Opus 4.6 (escalated)' : 'Sonnet 4.6'}</span>
-    <span style="font-size:11px;color:var(--muted);margin-left:auto">${intel.caseType} · ${intel.complexityLevel} · ${researchBundle.sources.length} sources</span>
+    <span style="font-size:11px;color:var(--muted);margin-left:auto">${intel.caseType} · ${intel.complexityLevel} · ${researchBundle.sources?.length ?? 0} sources</span>
   </div>`;
 
   // Ruling
@@ -385,11 +557,23 @@ function renderResult(data) {
     html += `</div>`;
   }
 
-  // Cited authorities
+  // Cited authorities — with hyperlinks resolved from ResearchBundle
   if (r.citedAuthorities?.length) {
     html += `<div class="result-section"><h3>Cited Authorities</h3>`;
     r.citedAuthorities.forEach(a => {
-      html += `<div class="citation-item"><div class="citation-id">${escHtml(a.id)}</div><strong style="font-size:12px">${escHtml(a.title)}</strong><div style="font-size:11px;color:var(--muted);margin-top:3px">${escHtml(a.proposition)}</div></div>`;
+      const src = sourceMap[a.id];
+      const url = src?.url || null;
+      const typeBadge = sourceTypeBadge(url);
+      const titleHtml = url
+        ? `<a href="${escHtml(url)}" target="_blank" rel="noopener">${escHtml(a.title || src?.title || a.id)}</a>`
+        : escHtml(a.title || src?.title || a.id);
+      html += `<div class="citation-item">
+        <div class="citation-header">
+          <span class="citation-id">${escHtml(a.id)}</span>${typeBadge}
+        </div>
+        <div class="citation-title">${titleHtml}</div>
+        <div class="citation-prop">${escHtml(a.proposition)}</div>
+      </div>`;
     });
     html += `</div>`;
   }
@@ -409,7 +593,7 @@ function renderResult(data) {
   }
 
   // Phase 7: Devil's Advocate
-  const da = checks.devilsAdvocate;
+  const da = checks?.devilsAdvocate;
   if (da) {
     html += `<div class="result-section"><div class="da-block"><h4>🔴 Devil's Advocate Critique</h4>`;
     if (da.assumptions?.length) {
@@ -428,8 +612,28 @@ function renderResult(data) {
   }
 
   // Citation integrity
-  const ci = checks.citationIntegrity;
-  html += `<div class="result-section"><div class="${ci.verified ? 'ci-ok' : 'ci-fail'}">${ci.verified ? '✓ All citations verified against ResearchBundle' : `⚠ Unverified citations: ${ci.unverifiedIds.join(', ')}`}</div></div>`;
+  const ci = checks?.citationIntegrity;
+  if (ci) {
+    html += `<div class="result-section"><div class="${ci.verified ? 'ci-ok' : 'ci-fail'}">${ci.verified ? '✓ All citations verified against ResearchBundle' : `⚠ Unverified citations: ${(ci.unverifiedIds || []).join(', ')}`}</div></div>`;
+  }
+
+  // Research Sources — all ResearchBundle sources with hyperlinks
+  if (researchBundle.sources?.length) {
+    html += `<div class="result-section"><h3>Research Sources (${researchBundle.sources.length})</h3><div class="sources-grid">`;
+    researchBundle.sources.forEach(s => {
+      const typeBadge = sourceTypeBadge(s.url);
+      const titleHtml = s.url
+        ? `<a href="${escHtml(s.url)}" target="_blank" rel="noopener">${escHtml(s.title)}</a>`
+        : escHtml(s.title);
+      const snippet = (s.content || '').slice(0, 120);
+      html += `<div class="source-card">
+        <div class="source-card-id">${escHtml(s.id)}${typeBadge}</div>
+        <div class="source-card-title">${titleHtml}</div>
+        ${snippet ? `<div class="source-card-snippet">${escHtml(snippet)}</div>` : ''}
+      </div>`;
+    });
+    html += `</div></div>`;
+  }
 
   return html;
 }
@@ -532,8 +736,19 @@ function handleEvent(evt) {
 
     case 'done':
       lastRulingData = evt;
-      document.getElementById('result').innerHTML = renderResult(evt);
-      document.getElementById('export-bar').classList.add('visible');
+      try {
+        document.getElementById('result').innerHTML = renderResult(evt);
+        document.getElementById('export-bar').classList.add('visible');
+      } catch (renderErr) {
+        console.error('renderResult failed:', renderErr);
+        document.getElementById('result').innerHTML =
+          `<div style="color:#f87171;padding:16px;background:var(--surface);border-radius:10px;border:1px solid #7c2d12">
+            <strong>Render error — ruling was produced but could not be displayed.</strong><br/>
+            <span style="font-size:11px;color:var(--muted)">${escHtml(renderErr.message)}</span>
+            <pre style="font-size:10px;margin-top:8px;color:var(--muted);white-space:pre-wrap">${escHtml(JSON.stringify(evt.ruling, null, 2).slice(0, 1200))}</pre>
+          </div>`;
+        document.getElementById('export-bar').classList.add('visible');
+      }
       break;
 
     case 'error':

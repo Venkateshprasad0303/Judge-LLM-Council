@@ -132,6 +132,106 @@ async function tavilySearch(query) {
   }
 }
 
+// ─── CourtListener Search ─────────────────────────────────────────────────────
+// Maps caseType to courts most likely to have relevant opinions
+const COURT_MAP = {
+  employment:        'ca1,ca2,ca3,ca4,ca5,ca6,ca7,ca8,ca9,ca10,ca11,scotus',
+  constitutional:    'scotus,ca1,ca2,ca3,ca4,ca5,ca6,ca7,ca8,ca9,ca10,ca11',
+  criminal:          'scotus,ca1,ca2,ca3,ca4,ca5,ca6,ca7,ca8,ca9,ca10,ca11',
+  contract:          'ca2,ca7,ca9,scotus',
+  tort:              'ca2,ca5,ca7,ca9,ca11,scotus',
+  property:          'ca9,ca5,ca11,scotus',
+  family:            'ca1,ca2,ca3,ca4,ca5,ca6,ca7,ca8,ca9,ca10,ca11',
+  regulatory:        'cadc,ca1,ca2,ca5,ca9,scotus',
+  consumer_protection: 'ca2,ca7,ca9,ca11,scotus',
+  intellectual_property: 'cafc,ca2,ca9,scotus',
+  civil_procedure:   'scotus,ca1,ca2,ca3,ca4,ca5,ca6,ca7,ca8,ca9,ca10,ca11',
+  other:             'scotus,ca9,ca2,ca5',
+};
+
+async function courtListenerSearch(query, caseType, jurisdiction) {
+  if (!process.env.COURTLISTENER_API_KEY) return [];
+  try {
+    const courts = COURT_MAP[caseType] || COURT_MAP.other;
+    const params = new URLSearchParams({
+      q: query,
+      type: 'o',           // opinions only
+      order_by: 'score desc',
+      court: courts,
+      stat_Precedential: 'on',
+    });
+    // Narrow to jurisdiction if provided (e.g. "California" → ca9 already in courts)
+    if (jurisdiction) params.set('q', `${query} ${jurisdiction}`);
+
+    const res = await fetch(`https://www.courtlistener.com/api/rest/v4/search/?${params}`, {
+      headers: {
+        'Authorization': `Token ${process.env.COURTLISTENER_API_KEY}`,
+      },
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.results || []).slice(0, 8).map(r => {
+      const year = (r.dateFiled || r.date_filed || '').slice(0, 4);
+      const citation = r.citation?.[0] || r.citation || null;
+      const title = citation
+        ? `${r.caseName || r.case_name || 'Unknown'}, ${citation}${year ? ` (${year})` : ''}`
+        : `${r.caseName || r.case_name || 'Unknown'}${year ? ` (${year})` : ''}`;
+      return {
+        title,
+        url: `https://www.courtlistener.com${r.absolute_url || ''}`,
+        content: (r.snippet || r.text || '').replace(/<[^>]+>/g, '').slice(0, 1600),
+        court: r.court_id || '',
+        date: r.dateFiled || r.date_filed || '',
+        citation: citation || null,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+// ─── GovInfo Search ───────────────────────────────────────────────────────────
+// GovInfo /search POST is unreliable — use direct package summary lookups instead.
+// Maps caseType → specific USC/CFR package IDs (stable, fast GET requests).
+const GOVINFO_PACKAGES = {
+  employment:            ['USCODE-2023-title29', 'USCODE-2023-title42'],  // Labor + Civil Rights
+  constitutional:        ['USCODE-2023-title42'],                          // Civil Rights
+  criminal:              ['USCODE-2023-title18', 'USCODE-2023-title28'],  // Crimes + Judiciary
+  contract:              ['USCODE-2023-title15'],                          // Commerce
+  tort:                  ['USCODE-2023-title28'],                          // Judiciary / procedure
+  property:              ['USCODE-2023-title12', 'USCODE-2023-title42'],  // Housing + HUD
+  family:                ['USCODE-2023-title42'],                          // Social welfare / support
+  regulatory:            ['USCODE-2023-title5', 'USCODE-2023-title44'],   // Admin procedure + regulations
+  consumer_protection:   ['USCODE-2023-title15'],                          // FTC Act, FCRA, TILA
+  intellectual_property: ['USCODE-2023-title17', 'USCODE-2023-title35'],  // Copyright + Patent
+  civil_procedure:       ['USCODE-2023-title28'],                          // Judiciary + FRCP basis
+  other:                 ['USCODE-2023-title28'],
+};
+
+async function govInfoSearch(query, caseType) {
+  if (!process.env.GOVINFO_API_KEY) return [];
+  const packageIds = GOVINFO_PACKAGES[caseType] || GOVINFO_PACKAGES.other;
+  try {
+    const results = await Promise.all(packageIds.map(async (pkgId) => {
+      const res = await fetch(
+        `https://api.govinfo.gov/packages/${pkgId}/summary?api_key=${process.env.GOVINFO_API_KEY}`
+      );
+      if (!res.ok) return null;
+      const d = await res.json();
+      return {
+        title: `${d.title} (${pkgId})`,
+        url: d.detailsLink || '',
+        content: `United States Code — ${d.title}. Package: ${pkgId}. Published: ${d.dateIssued}. Full statutory text at ${d.detailsLink}`,
+        collection: d.collectionCode || 'USCODE',
+        date: d.dateIssued || '',
+      };
+    }));
+    return results.filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
 // Escape literal newlines/tabs inside JSON string values (LLMs often emit these)
 function fixJsonStrings(s) {
   // Replace literal \n \r \t inside quoted string values only
@@ -645,39 +745,52 @@ tavilyConfig: 0 searches for stable doctrine (constitutional, classical tort). 3
 
 // ─── PHASE 2: Research Fan-out ────────────────────────────────────────────────
 async function phase2(intel, emit_fn) {
-  const ragDocs = ragSearch(intel.legalIssues.join(' '), intel.caseType);
+  const query = intel.legalIssues.join(' ');
+
+  // Parallel fetch from all three sources simultaneously
+  const [ragDocs, caseResults, statuteResults, tavilySources] = await Promise.all([
+    // Layer 1: static RAG as fallback (always available, zero latency)
+    Promise.resolve(ragSearch(query, intel.caseType)),
+    // Layer 2: CourtListener — real case law, continuously updated
+    courtListenerSearch(query, intel.caseType, intel.jurisdiction),
+    // Layer 3: GovInfo — USC + CFR statutory text
+    govInfoSearch(query, intel.caseType),
+    // Layer 4: Tavily — recency gap (post-2018, recent rulings, regulatory updates)
+    (intel.tavilyConfig.fire && intel.tavilyConfig.searchCount > 0)
+      ? Promise.all(
+          [
+            `${intel.caseType} law ${intel.legalIssues[0]} recent ruling`,
+            `${intel.jurisdiction || 'US'} ${intel.caseType} statute current`,
+            intel.legalIssues[1] || intel.legalIssues[0],
+          ]
+          .slice(0, intel.tavilyConfig.searchCount / 3)
+          .map(tavilySearch)
+        ).then(r => r.flat())
+      : Promise.resolve([]),
+  ]);
 
   const researchPrompt = (role) => `You are a ${role} legal researcher. Research the legal issues below.
 Use the provided legal knowledge base. Return JSON: { "findings": ["string"], "keyPrecedents": ["string"], "favorableAuthorities": ["string"], "sources": [{"id":"string","title":"string","relevance":"string"}] }
 
 Case: ${JSON.stringify(intel)}
-Legal Knowledge Base: ${JSON.stringify(ragDocs)}`;
+Legal Knowledge Base: ${JSON.stringify(ragDocs)}
+Case Law (CourtListener): ${JSON.stringify(caseResults)}
+Statutes (GovInfo): ${JSON.stringify(statuteResults)}
+Recent Sources (Tavily): ${JSON.stringify(tavilySources)}`;
 
-  // Parallel research fan-out
+  // Parallel advocate research fan-out
   const [plaintiffRes, defenseRes, neutralRes] = await Promise.all([
-    llm(M.HAIKU, [{ role: 'user', content: 'Research favorable to plaintiff.' }], { json: true, systemPrompt: researchPrompt('plaintiff-favoring') }),
-    llm(M.HAIKU, [{ role: 'user', content: 'Research favorable to defense.' }], { json: true, systemPrompt: researchPrompt('defense-favoring') }),
-    llm(M.HAIKU, [{ role: 'user', content: 'Research procedural rules and neutral standards.' }], { json: true, systemPrompt: researchPrompt('neutral procedural') }),
+    llm(M.HAIKU, [{ role: 'user', content: 'Research favorable to plaintiff.' }], { json: true, maxTokens: 3500, systemPrompt: researchPrompt('plaintiff-favoring') }),
+    llm(M.HAIKU, [{ role: 'user', content: 'Research favorable to defense.' }], { json: true, maxTokens: 3500, systemPrompt: researchPrompt('defense-favoring') }),
+    llm(M.HAIKU, [{ role: 'user', content: 'Research procedural rules and neutral standards.' }], { json: true, maxTokens: 3500, systemPrompt: researchPrompt('neutral procedural') }),
   ]);
 
-  // Tavily delta searches
-  let tavilySources = [];
-  if (intel.tavilyConfig.fire && intel.tavilyConfig.searchCount > 0) {
-    const queries = [
-      `${intel.caseType} law ${intel.legalIssues[0]} recent ruling`,
-      `${intel.jurisdiction || 'US'} ${intel.caseType} statute current`,
-      intel.legalIssues[1] || intel.legalIssues[0],
-    ].slice(0, intel.tavilyConfig.searchCount / 3);
-
-    tavilySources = (await Promise.all(queries.map(tavilySearch))).flat();
-  }
-
-  // Synthesize
+  // Synthesize all four source layers
   const synthesis = await llm(M.SONNET,
     [{
       role: 'user',
       content: [
-        ...withCache(`Legal Knowledge Base:\n${JSON.stringify(ragDocs)}\n\nPlaintiff Research: ${plaintiffRes}\n\nDefense Research: ${defenseRes}\n\nNeutral Research: ${neutralRes}\n\nTavily Sources: ${JSON.stringify(tavilySources)}`),
+        ...withCache(`Legal Knowledge Base:\n${JSON.stringify(ragDocs)}\n\nCase Law (CourtListener):\n${JSON.stringify(caseResults)}\n\nStatutes (GovInfo):\n${JSON.stringify(statuteResults)}\n\nPlaintiff Research: ${plaintiffRes}\n\nDefense Research: ${defenseRes}\n\nNeutral Research: ${neutralRes}\n\nTavily Sources: ${JSON.stringify(tavilySources)}`),
         { type: 'text', text: 'Synthesize all research into a unified ResearchBundle JSON: { "summary": "string", "sources": [{"id":"string","title":"string","content":"string","url":"string|null"}], "keyStatutes": ["string"], "precedents": ["string"], "plaintiffStrengths": ["string"], "defenseStrengths": ["string"] }' },
       ],
     }],
@@ -894,9 +1007,19 @@ CRITICAL: The ResearchBundle sources use IDs in the format "src-1", "src-2", etc
       try {
         const parsed = JSON.parse(raw);
         const delta = parsed.choices?.[0]?.delta?.content;
-        if (delta) {
+        if (typeof delta === 'string' && delta) {
+          // Standard text delta
           fullText += delta;
           stream_fn(delta);
+        } else if (Array.isArray(delta)) {
+          // Anthropic extended-thinking: content is an array of typed blocks
+          for (const block of delta) {
+            if (block.type === 'text' && block.text) {
+              fullText += block.text;
+              stream_fn(block.text);
+            }
+            // Skip thinking blocks — they are not part of the JSON output
+          }
         }
       } catch { /* skip malformed */ }
     }
@@ -1043,13 +1166,22 @@ app.post('/api/council', async (req, res) => {
     if (history.length > 20) history.splice(0, 2);
     sessions.set(sessionId, history);
 
-    // Done
+    // Done — trim payload so the single SSE line stays manageable.
+    // advocates + judgePanel are not used by renderResult or exports; source content
+    // is trimmed to 200 chars (enough for the snippet cards).
     e('done', {
       intel,
-      researchBundle,
-      advocates,
-      crossExam,
-      judgePanel,
+      researchBundle: {
+        ...researchBundle,
+        sources: (researchBundle.sources || []).map(s => ({
+          ...s,
+          content: (s.content || '').slice(0, 200),
+        })),
+      },
+      crossExam: {
+        consensusLevel: crossExam.consensusLevel,
+        divergentClaims: crossExam.divergentClaims,
+      },
       ruling,
       checks,
     });
